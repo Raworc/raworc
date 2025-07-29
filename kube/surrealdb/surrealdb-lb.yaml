@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: surrealdb-loadbalancer
+  namespace: surrealdb
+spec:
+  type: LoadBalancer
+  selector:
+    app: surrealdb
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
