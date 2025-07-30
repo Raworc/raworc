@@ -14,6 +14,34 @@ The platform operates through session-based containerized environments where use
 
 Rather than running persistent agents, Raworc organizes work into discrete, manageable sessions that can be started, terminated, and remixed from any previous state, avoiding rework by building upon previous context.
 
+## Architecture
+
+<div align="center">
+  <img src="assets/raworc-architecture.excalidraw.png" alt="Raworc Architecture" width="800"/>
+</div>
+
+### Core Components
+
+**Control Plane:**
+- **Raworc Control CLI** (`raworc`): Developer interface for sessions and agents
+- **Raworc Service**: GraphQL server in Rust for platform operations
+
+**Data Layer:**
+- **SurrealDB**: Database for admins, agents, sessions with SurrealQL
+- **TiKV**: Storage engine for data persistence
+
+**Session Runtime:**
+- **Container Per Session**: Isolated environments for each user session
+- **Session Components**:
+  - **Guardrails**: Safety and constraint enforcement
+  - **Agent Memory From PV**: Persistent state via Persistent Volumes
+  - **Third-Party Agents**: External agent integrations
+  - **Built-in Agents**: Platform-native implementations
+  - **Raworc Agent** (`raworc-agent`): Core Rust-based runtime
+
+**Infrastructure:**
+- **Raworc Cluster**: Kubernetes orchestration
+
 ## How It Works
 
 ### Session Lifecycle
