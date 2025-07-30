@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: surrealdb
+  namespace: surrealdb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: surrealdb
+  template:
+    metadata:
+      labels:
+        app: surrealdb
+    spec:
+      containers:
+      - name: surrealdb
+        image: surrealdb/surrealdb:latest
+        ports:
+        - containerPort: 8000
+        args:
+        - start
+        - --log
+        - debug
+        - --user
+        - root
+        - --pass
+        - root
+        - tikv://tikv-cluster-pd.tikv:2379
+        env:
+        - name: SURREAL_PATH
+          value: tikv://tikv-cluster-pd.tikv:2379
+        - name: SURREAL_CAPS_ALLOW_EXPERIMENTAL
+          value: "graphql"
