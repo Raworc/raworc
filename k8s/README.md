@@ -11,7 +11,7 @@ SurrealDB (with GraphQL) → TiKV Cluster → Persistent Storage
 ## Directory Structure
 
 ```
-kube/
+k8s/
 ├── deploy.sh                      # Deployment script
 ├── uninstall.sh                   # Uninstall script
 ├── tikv/                          # TiKV cluster configurations
