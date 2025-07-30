@@ -1,4 +1,10 @@
-# Welcome to the Raworc Project
+<div align="center">
+  <img src="assets/logo.png" alt="Raworc Logo" width="200"/>
+  
+  # Raworc
+  
+  *Remote Agent Work Orchestration*
+</div>
 
 Raworc is a cloud-native orchestration platform designed for fast AI agent deployment and user experimentation. Raworc accelerates the testing cycle by providing containerized user sessions that enable seamless agent deployment and real-world validation. The platform offers developers foundational infrastructure to rapidly deploy agents to users, gather feedback, and iterate.
 
