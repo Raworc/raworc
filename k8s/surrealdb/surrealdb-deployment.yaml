@@ -20,6 +20,8 @@ spec:
         - containerPort: 8000
         args:
         - start
+        - --bind
+        - 0.0.0.0:8000
         - --log
         - debug
         - --user
