@@ -41,25 +41,28 @@ PID: {}
     );
 
     // Initialize database connection and app state
-    info!("Connecting to database...");
-    let app_state =
-        match initialize_app_state("127.0.0.1:8000", "super-secret-key".to_string()).await {
-            Ok(state) => {
-                info!("Connected to database successfully!");
-                state
-            }
-            Err(e) => {
-                error!("Failed to connect to database: {}", e);
-                error!("To start database, run:");
-                error!("   export PATH=/home/dev/.surrealdb:$PATH");
-                error!(
-                "   surreal start --log debug --user root --pass root --bind 0.0.0.0:8000 memory"
-            );
-                return Err(anyhow::anyhow!(
-                    "Database not available. Please start database server first."
-                ));
-            }
-        };
+    info!("Connecting to PostgreSQL database...");
+    
+    // Get environment variables or use defaults
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5432/postgres".to_string());
+    let jwt_secret = std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "super-secret-key".to_string());
+    
+    let app_state = match initialize_app_state(&database_url, jwt_secret).await {
+        Ok(state) => {
+            info!("Connected to database successfully!");
+            state
+        }
+        Err(e) => {
+            error!("Failed to connect to database: {}", e);
+            error!("Please ensure PostgreSQL is running and DATABASE_URL is set correctly");
+            error!("Example: DATABASE_URL=postgresql://user:password@host:port/database");
+            return Err(anyhow::anyhow!(
+                "Database not available. Please check your configuration."
+            ));
+        }
+    };
 
     // Seed RBAC system if service_accounts table is empty
     if let Err(e) = seed_rbac_system(&app_state).await {
