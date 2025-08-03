@@ -2,7 +2,7 @@
 
 # TiKV + SurrealDB Uninstall Script
 
-echo "🗑️  Uninstalling TiKV + SurrealDB..."
+echo "Uninstalling TiKV + SurrealDB..."
 
 # Delete SurrealDB
 echo "Removing SurrealDB..."
@@ -18,10 +18,10 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     kubectl delete namespace surrealdb
     kubectl delete namespace tikv
-    echo "✅ Namespaces and data deleted"
+    echo "Namespaces and data deleted"
 else
-    echo "⚠️  Namespaces kept. PVCs still exist."
+    echo "WARNING: Namespaces kept. PVCs still exist."
     echo "To manually delete: kubectl delete namespace surrealdb tikv"
 fi
 
-echo "✅ Uninstall complete!"
+echo "Uninstall complete!"
