@@ -1,6 +1,30 @@
 [package]
 name = "raworc"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
+tokio = { version = "1.0", features = ["full"] }
+async-graphql = "7.0"
+async-graphql-axum = "7.0"
+axum = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+jsonwebtoken = "9.0"
+bcrypt = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+# tower_governor = "0.4"  # Removed for now
+anyhow = "1.0"
+async-trait = "0.1"
+surrealdb = "2.0"
+thiserror = "2.0"
+ctrlc = "3.4"
+daemonize = "0.5"
+reqwest = { version = "0.12", features = ["json"] }
+rustyline = { version = "14.0", features = ["derive"] }
+dirs = "5.0"
+rpassword = "7.3"
+serde_json = "1.0"
+serde_yaml = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
