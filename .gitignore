@@ -46,3 +46,6 @@ Thumbs.db
 *.temp
 *.bak
 *.orig
+
+# Shell history
+history.txt
