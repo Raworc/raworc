@@ -19,7 +19,9 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
-use tracing::{error, info};
+use tracing::info;
+#[cfg(unix)]
+use tracing::error;
 
 #[derive(Helper)]
 struct RaworcHelper;

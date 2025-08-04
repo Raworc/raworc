@@ -1,3 +1,4 @@
+#[cfg(unix)]
 use std::path::Path;
 use tracing::info;
 use tracing_appender::{non_blocking, rolling};
@@ -48,6 +49,7 @@ pub fn init_logging(log_dir: &str, service_name: &str) -> Result<(), anyhow::Err
     Ok(())
 }
 
+#[cfg(unix)]
 pub fn rotate_logs_on_startup(log_dir: &str, service_name: &str) -> Result<(), anyhow::Error> {
     let log_file = format!("{log_dir}/{service_name}.log");
     let log_path = Path::new(&log_file);
