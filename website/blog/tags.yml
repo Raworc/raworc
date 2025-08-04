@@ -1,0 +1,34 @@
+welcome:
+  label: Welcome
+  permalink: /welcome
+  description: Welcome posts and announcements
+
+announcement:
+  label: Announcement
+  permalink: /announcement
+  description: Platform announcements and updates
+
+raworc:
+  label: Raworc
+  permalink: /raworc
+  description: General Raworc platform posts
+
+architecture:
+  label: Architecture
+  permalink: /architecture
+  description: Technical architecture discussions
+
+sessions:
+  label: Sessions
+  permalink: /sessions
+  description: Session-based orchestration topics
+
+technical:
+  label: Technical
+  permalink: /technical
+  description: Technical deep dives and tutorials
+
+agents:
+  label: Agents
+  permalink: /agents
+  description: AI agent deployment and management

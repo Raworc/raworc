@@ -1,0 +1,14 @@
+raworc-team:
+  name: Raworc Team
+  title: Building the future of agent orchestration
+  url: https://github.com/raworc
+  image_url: /img/logo.png
+  socials:
+    x: raworc
+    github: raworc
+
+admin:
+  name: Raworc Admin
+  title: Platform Administrator
+  url: https://raworc.com
+  image_url: /img/logo.png
