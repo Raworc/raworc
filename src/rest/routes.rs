@@ -44,6 +44,14 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/agents/{id}", get(handlers::agents::get_agent))
         .route("/agents/{id}", put(handlers::agents::update_agent))
         .route("/agents/{id}", delete(handlers::agents::delete_agent))
+        // Session endpoints
+        .route("/sessions", get(handlers::sessions::list_sessions))
+        .route("/sessions", post(handlers::sessions::create_session))
+        .route("/sessions/{id}", get(handlers::sessions::get_session))
+        .route("/sessions/{id}", put(handlers::sessions::update_session))
+        .route("/sessions/{id}/state", put(handlers::sessions::update_session_state))
+        .route("/sessions/{id}/remix", post(handlers::sessions::remix_session))
+        .route("/sessions/{id}", delete(handlers::sessions::delete_session))
         .layer(middleware::from_fn_with_state(state.clone(), auth_middleware));
 
     let api_routes = public_routes.merge(protected_routes).with_state(state.clone());

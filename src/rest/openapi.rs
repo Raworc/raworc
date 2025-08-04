@@ -10,10 +10,11 @@ use crate::rest::{
         roles::{CreateRoleRequest, RoleResponse, RuleRequest, RuleResponse},
         role_bindings::{CreateRoleBindingRequest, RoleBindingResponse, RoleRefRequest, SubjectRequest},
         agents::AgentResponse,
+        sessions::{SessionResponse, SessionAgentInfo},
     },
     error::ErrorResponse,
 };
-use crate::models::{CreateAgentRequest, UpdateAgentRequest};
+use crate::models::{CreateAgentRequest, UpdateAgentRequest, CreateSessionRequest, RemixSessionRequest, UpdateSessionStateRequest, UpdateSessionRequest, SessionLifecycle};
 use crate::rbac::SubjectType;
 
 #[derive(OpenApi)]
@@ -41,6 +42,13 @@ use crate::rbac::SubjectType;
         crate::rest::openapi::create_agent,
         crate::rest::openapi::update_agent,
         crate::rest::openapi::delete_agent,
+        crate::rest::openapi::list_sessions,
+        crate::rest::openapi::get_session,
+        crate::rest::openapi::create_session,
+        crate::rest::openapi::update_session,
+        crate::rest::openapi::update_session_state,
+        crate::rest::openapi::remix_session,
+        crate::rest::openapi::delete_session,
     ),
     components(
         schemas(
@@ -63,6 +71,13 @@ use crate::rbac::SubjectType;
             AgentResponse,
             CreateAgentRequest,
             UpdateAgentRequest,
+            SessionResponse,
+            SessionAgentInfo,
+            CreateSessionRequest,
+            RemixSessionRequest,
+            UpdateSessionStateRequest,
+            UpdateSessionRequest,
+            SessionLifecycle,
         )
     ),
     modifiers(&SecurityAddon),
@@ -73,6 +88,7 @@ use crate::rbac::SubjectType;
         (name = "Roles", description = "Role management"),
         (name = "Role Bindings", description = "Role binding management"),
         (name = "Agents", description = "Agent management"),
+        (name = "Sessions", description = "Session management"),
     ),
     info(
         title = "Raworc REST API",
@@ -494,3 +510,148 @@ pub async fn update_agent() {}
 )]
 #[allow(dead_code)]
 pub async fn delete_agent() {}
+
+// Session endpoints
+#[utoipa::path(
+    get,
+    path = "/api/v0/sessions",
+    tag = "Sessions",
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("created_by" = Option<String>, Query, description = "Filter by creator (admin only)"),
+        ("lifecycle_state" = Option<String>, Query, description = "Filter by lifecycle state"),
+    ),
+    responses(
+        (status = 200, description = "List of sessions", body = Vec<SessionResponse>),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn list_sessions() {}
+
+#[utoipa::path(
+    get,
+    path = "/api/v0/sessions/{id}",
+    tag = "Sessions",
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Session ID"),
+    ),
+    responses(
+        (status = 200, description = "Session details", body = SessionResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Session not found", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn get_session() {}
+
+#[utoipa::path(
+    post,
+    path = "/api/v0/sessions",
+    tag = "Sessions",
+    request_body = CreateSessionRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Session created", body = SessionResponse),
+        (status = 400, description = "Invalid request", body = ErrorResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn create_session() {}
+
+#[utoipa::path(
+    put,
+    path = "/api/v0/sessions/{id}",
+    tag = "Sessions",
+    request_body = UpdateSessionRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Session ID"),
+    ),
+    responses(
+        (status = 200, description = "Session updated", body = SessionResponse),
+        (status = 400, description = "Invalid request", body = ErrorResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Session not found", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn update_session() {}
+
+#[utoipa::path(
+    put,
+    path = "/api/v0/sessions/{id}/state",
+    tag = "Sessions",
+    request_body = UpdateSessionStateRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Session ID"),
+    ),
+    responses(
+        (status = 200, description = "Session state updated", body = SessionResponse),
+        (status = 400, description = "Invalid state transition", body = ErrorResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Session not found", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn update_session_state() {}
+
+#[utoipa::path(
+    post,
+    path = "/api/v0/sessions/{id}/remix",
+    tag = "Sessions",
+    request_body = RemixSessionRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Parent session ID"),
+    ),
+    responses(
+        (status = 200, description = "New session created from parent", body = SessionResponse),
+        (status = 400, description = "Invalid request", body = ErrorResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Parent session not found", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn remix_session() {}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v0/sessions/{id}",
+    tag = "Sessions",
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Session ID"),
+    ),
+    responses(
+        (status = 204, description = "Session deleted"),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Session not found", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn delete_session() {}
