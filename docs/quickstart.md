@@ -32,13 +32,18 @@ psql $DATABASE_URL < migrations/001_create_rbac_tables.sql
 ## 3. Start the Server
 
 ```bash
-# Start Raworc server
-./target/release/raworc start --port 9000
+# Start Raworc server (with defaults)
+./target/release/raworc start
+
+# Or with custom configuration
+RAWORC_HOST=0.0.0.0 RAWORC_PORT=8080 ./target/release/raworc start
 
 # Server will be available at:
 # - REST API: http://localhost:9000/api/v1
 # - Swagger UI: http://localhost:9000/swagger-ui/
 ```
+
+> **Note**: See [Configuration Guide](configuration.md) for all available options.
 
 ## 4. Authenticate
 
