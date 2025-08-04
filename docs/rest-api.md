@@ -228,6 +228,90 @@ Delete a role binding by ID.
 
 **Response**: `200 OK`
 
+### Agents
+
+#### GET /agents
+List all active agents.
+
+**Response**:
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "assistant",
+    "description": "General purpose assistant agent",
+    "instructions": "You are a helpful AI assistant. Be concise and accurate in your responses.",
+    "model": "gpt-4",
+    "tools": [],
+    "routes": [],
+    "guardrails": [],
+    "knowledge_bases": [],
+    "active": true,
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-01-01T00:00:00Z"
+  }
+]
+```
+
+#### POST /agents
+Create a new agent.
+
+**Request**:
+```json
+{
+  "name": "code-reviewer",
+  "description": "Code review specialist",
+  "instructions": "You are an expert code reviewer. Focus on security, performance, and best practices.",
+  "model": "gpt-4-turbo",
+  "tools": ["static-analysis", "security-scan"],
+  "routes": [{"pattern": "*.py", "weight": 1.0}],
+  "guardrails": ["no-secrets", "no-pii"],
+  "knowledge_bases": ["python-best-practices"]
+}
+```
+
+**Response**: Same as GET /agents/{id}
+
+#### GET /agents/{id}
+Get a specific agent by ID or name.
+
+**Response**:
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "assistant",
+  "description": "General purpose assistant agent",
+  "instructions": "You are a helpful AI assistant. Be concise and accurate in your responses.",
+  "model": "gpt-4",
+  "tools": [],
+  "routes": [],
+  "guardrails": [],
+  "knowledge_bases": [],
+  "active": true,
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-01T00:00:00Z"
+}
+```
+
+#### PUT /agents/{id}
+Update an agent by ID.
+
+**Request**:
+```json
+{
+  "instructions": "Updated instructions for the agent",
+  "model": "gpt-4-turbo",
+  "active": true
+}
+```
+
+**Response**: Same as GET /agents/{id}
+
+#### DELETE /agents/{id}
+Delete (soft delete) an agent by ID.
+
+**Response**: `204 No Content`
+
 ## Error Responses
 
 All errors follow a consistent format:

@@ -53,6 +53,24 @@ raworc> /api DELETE service-accounts/bot-user
 raworc> /api DELETE role-bindings/some-binding-id
 ```
 
+### Agent Management
+```bash
+# List all agents
+raworc> /api agents
+
+# Get specific agent by name or ID
+raworc> /api agents/assistant
+
+# Create a new agent
+raworc> /api POST agents {"name":"code-assistant","instructions":"You are a helpful coding assistant","model":"gpt-4","description":"Helps with code reviews and debugging"}
+
+# Update an agent
+raworc> /api PUT agents/code-assistant {"instructions":"You are an expert code reviewer focused on security","model":"gpt-4-turbo"}
+
+# Delete an agent
+raworc> /api DELETE agents/code-assistant
+```
+
 ## Response Format
 
 All commands show:
