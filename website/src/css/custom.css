@@ -1,0 +1,51 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-color-primary: #000000;
+  --ifm-color-primary-dark: #000000;
+  --ifm-color-primary-darker: #000000;
+  --ifm-color-primary-darkest: #000000;
+  --ifm-color-primary-light: #1a1a1a;
+  --ifm-color-primary-lighter: #333333;
+  --ifm-color-primary-lightest: #4d4d4d;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #ffffff;
+  --ifm-color-primary-dark: #e6e6e6;
+  --ifm-color-primary-darker: #d9d9d9;
+  --ifm-color-primary-darkest: #b3b3b3;
+  --ifm-color-primary-light: #ffffff;
+  --ifm-color-primary-lighter: #ffffff;
+  --ifm-color-primary-lightest: #ffffff;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Custom hero banner styles */
+.hero--primary {
+  --ifm-hero-background-color: #000000;
+  --ifm-hero-text-color: #ffffff;
+}
+
+/* Make the outline button white on black background */
+.hero--primary .button--outline {
+  --ifm-button-color: #ffffff;
+  --ifm-button-border-color: #ffffff;
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.hero--primary .button--outline:hover {
+  --ifm-button-background-color: #ffffff;
+  --ifm-button-color: #000000;
+  background-color: #ffffff;
+  color: #000000;
+}
