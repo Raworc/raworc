@@ -78,8 +78,8 @@ Rather than running persistent agents, Raworc organizes work into discrete, mana
 - [RBAC Guide](docs/rbac.md) - Role-based access control
 
 ### Live Documentation (requires running server)
-- [Swagger UI](http://localhost:9000/swagger-ui/) - Interactive API explorer
-- [OpenAPI Spec](http://localhost:9000/api-docs/openapi.json) - OpenAPI 3.0 specification
+- **Swagger UI** - Interactive API explorer at `/swagger-ui/`
+- **OpenAPI Spec** - OpenAPI 3.0 specification at `/api-docs/openapi.json`
 
 ## Getting Started
 

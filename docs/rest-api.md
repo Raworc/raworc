@@ -4,15 +4,15 @@
 
 Raworc provides a comprehensive REST API for managing platform operations, authentication, and role-based access control.
 
-- **Base URL**: `http://localhost:9000/api/v1`
+- **Base URL**: `/api/v1`
 - **Authentication**: Bearer token (JWT)
 - **Content-Type**: `application/json`
 
 ## OpenAPI Documentation
 
 When the server is running, you can access:
-- **Swagger UI**: http://localhost:9000/swagger-ui/
-- **OpenAPI JSON**: http://localhost:9000/api-docs/openapi.json
+- **Swagger UI**: `/swagger-ui/`
+- **OpenAPI JSON**: `/api-docs/openapi.json`
 
 ## Authentication
 

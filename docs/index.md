@@ -41,8 +41,8 @@ psql $DATABASE_URL < migrations/001_create_rbac_tables.sql
 - **[RBAC System](rbac.md)** - Role-based access control explained
 
 ### Interactive Documentation (requires running server)
-- **[Swagger UI](http://localhost:9000/swagger-ui/)** - Interactive API explorer
-- **[OpenAPI Spec](http://localhost:9000/api-docs/openapi.json)** - OpenAPI 3.0 specification
+- **Swagger UI** - Available at `/swagger-ui/` on your server
+- **OpenAPI Spec** - Available at `/api-docs/openapi.json` on your server
 
 ## 🔧 Quick Reference
 

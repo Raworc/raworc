@@ -70,7 +70,7 @@ use crate::rbac::SubjectType;
         license(name = "MIT"),
     ),
     servers(
-        (url = "http://localhost:9000", description = "Local development server"),
+        (url = "/", description = "Current server"),
     ),
 )]
 pub struct ApiDoc;
