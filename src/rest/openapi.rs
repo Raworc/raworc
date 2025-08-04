@@ -9,9 +9,11 @@ use crate::rest::{
         service_accounts::{CreateServiceAccountRequest, ServiceAccountResponse},
         roles::{CreateRoleRequest, RoleResponse, RuleRequest, RuleResponse},
         role_bindings::{CreateRoleBindingRequest, RoleBindingResponse, RoleRefRequest, SubjectRequest},
+        agents::AgentResponse,
     },
     error::ErrorResponse,
 };
+use crate::models::{CreateAgentRequest, UpdateAgentRequest};
 use crate::rbac::SubjectType;
 
 #[derive(OpenApi)]
@@ -34,6 +36,11 @@ use crate::rbac::SubjectType;
         crate::rest::openapi::get_role_binding,
         crate::rest::openapi::create_role_binding,
         crate::rest::openapi::delete_role_binding,
+        crate::rest::openapi::list_agents,
+        crate::rest::openapi::get_agent,
+        crate::rest::openapi::create_agent,
+        crate::rest::openapi::update_agent,
+        crate::rest::openapi::delete_agent,
     ),
     components(
         schemas(
@@ -53,6 +60,9 @@ use crate::rbac::SubjectType;
             SubjectType,
             ErrorResponse,
             crate::rest::error::ErrorDetails,
+            AgentResponse,
+            CreateAgentRequest,
+            UpdateAgentRequest,
         )
     ),
     modifiers(&SecurityAddon),
@@ -62,6 +72,7 @@ use crate::rbac::SubjectType;
         (name = "Service Accounts", description = "Service account management"),
         (name = "Roles", description = "Role management"),
         (name = "Role Bindings", description = "Role binding management"),
+        (name = "Agents", description = "Agent management"),
     ),
     info(
         title = "Raworc REST API",
@@ -384,3 +395,102 @@ pub async fn create_role_binding() {}
 )]
 #[allow(dead_code)]
 pub async fn delete_role_binding() {}
+
+// Agent endpoints
+#[utoipa::path(
+    get,
+    path = "/api/v1/agents",
+    tag = "Agents",
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "List of agents", body = Vec<AgentResponse>),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn list_agents() {}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/agents/{id}",
+    tag = "Agents",
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Agent ID or name"),
+    ),
+    responses(
+        (status = 200, description = "Agent details", body = AgentResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Agent not found", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn get_agent() {}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/agents",
+    tag = "Agents",
+    request_body = CreateAgentRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Agent created", body = AgentResponse),
+        (status = 400, description = "Invalid request", body = ErrorResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 409, description = "Agent already exists", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn create_agent() {}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/agents/{id}",
+    tag = "Agents",
+    request_body = UpdateAgentRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Agent ID"),
+    ),
+    responses(
+        (status = 200, description = "Agent updated", body = AgentResponse),
+        (status = 400, description = "Invalid request", body = ErrorResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Agent not found", body = ErrorResponse),
+        (status = 409, description = "Agent name conflict", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn update_agent() {}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/agents/{id}",
+    tag = "Agents",
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Agent ID"),
+    ),
+    responses(
+        (status = 204, description = "Agent deleted"),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Agent not found", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn delete_agent() {}

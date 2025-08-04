@@ -1,6 +1,10 @@
 use thiserror::Error;
 use sqlx::{Pool, Postgres};
 
+pub mod agent;
+
+pub use agent::{Agent, CreateAgentRequest, UpdateAgentRequest};
+
 // Database errors
 #[derive(Error, Debug)]
 pub enum DatabaseError {

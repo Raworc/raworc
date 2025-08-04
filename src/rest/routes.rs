@@ -1,7 +1,7 @@
 use axum::{
     http::StatusCode,
     middleware,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use std::sync::Arc;
@@ -38,6 +38,12 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/role-bindings", post(handlers::role_bindings::create_role_binding))
         .route("/role-bindings/{id}", get(handlers::role_bindings::get_role_binding))
         .route("/role-bindings/{id}", delete(handlers::role_bindings::delete_role_binding))
+        // Agent endpoints
+        .route("/agents", get(handlers::agents::list_agents))
+        .route("/agents", post(handlers::agents::create_agent))
+        .route("/agents/{id}", get(handlers::agents::get_agent))
+        .route("/agents/{id}", put(handlers::agents::update_agent))
+        .route("/agents/{id}", delete(handlers::agents::delete_agent))
         .layer(middleware::from_fn_with_state(state.clone(), auth_middleware));
 
     let api_routes = public_routes.merge(protected_routes).with_state(state.clone());
