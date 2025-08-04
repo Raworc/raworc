@@ -94,7 +94,7 @@ cd raworc
 
 # Build and run
 cargo build --release
-./target/release/raworc start --port 9000
+./target/release/raworc start
 
 # In another terminal, authenticate
 ./target/release/raworc auth

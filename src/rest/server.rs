@@ -47,6 +47,10 @@ PID: {}
         .unwrap_or_else(|_| "postgresql://postgres@localhost/raworc".to_string());
     let jwt_secret = std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| "super-secret-key".to_string());
+    let host = std::env::var("RAWORC_HOST")
+        .unwrap_or_else(|_| "0.0.0.0".to_string());
+    let port = std::env::var("RAWORC_PORT")
+        .unwrap_or_else(|_| "9000".to_string());
     
     let app_state = match initialize_app_state(&database_url, jwt_secret).await {
         Ok(state) => {
@@ -73,12 +77,14 @@ PID: {}
     let app = create_router(app_state);
 
     // Start server
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:9000").await?;
+    let bind_addr = format!("{}:{}", host, port);
+    info!("Binding to: {}", bind_addr);
+    let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
 
     info!("Server started successfully!");
-    info!("REST API Endpoint: http://localhost:9000/api/v1");
-    info!("Swagger UI: http://localhost:9000/swagger-ui/");
-    info!("OpenAPI JSON: http://localhost:9000/api-docs/openapi.json");
+    info!("REST API Endpoint: http://{}:{}/api/v1", host, port);
+    info!("Swagger UI: http://{}:{}/swagger-ui/", host, port);
+    info!("OpenAPI JSON: http://{}:{}/api-docs/openapi.json", host, port);
     info!("Ready to accept requests...");
 
     let result = axum::serve(listener, app).await;
