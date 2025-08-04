@@ -16,10 +16,6 @@ Rather than running persistent agents, Raworc organizes work into discrete, mana
 
 ## Architecture
 
-<div align="center">
-  <img src="assets/raworc-architecture.excalidraw.png" alt="Raworc Architecture" width="800"/>
-</div>
-
 ### Core Components
 
 **Control Plane:**
