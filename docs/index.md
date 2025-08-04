@@ -1,90 +1,85 @@
-# Raworc Documentation Hub
+# Raworc Documentation
 
-Welcome to the Raworc documentation! This index provides quick access to all documentation resources.
+Welcome to the Raworc documentation! This index provides organized access to all available documentation.
 
 ## 🚀 Getting Started
 
-- **[Quick Start Guide](quickstart.md)** - Get Raworc running in 5 minutes
-- **[Installation Guide](installation.md)** - Detailed installation instructions
-- **[First Steps](first-steps.md)** - Your first session with Raworc
+### Prerequisites
+- Rust 1.70+ installed
+- PostgreSQL 14+ running
+- Git
 
-## 📚 API Documentation
+### Quick Start
 
-### REST API
+```bash
+# Clone the repository
+git clone https://github.com/raworc/raworc.git
+cd raworc
+
+# Build the project
+cargo build --release
+
+# Set up database
+export DATABASE_URL="postgresql://user:password@localhost:5432/raworc"
+psql $DATABASE_URL < migrations/001_create_rbac_tables.sql
+
+# Start the server
+./target/release/raworc start
+
+# In another terminal, authenticate
+./target/release/raworc auth
+```
+
+## 📚 Available Documentation
+
+### API Documentation
 - **[REST API Reference](rest-api.md)** - Complete endpoint documentation
-- **[API Authentication](api-auth.md)** - How to authenticate with the API
-- **[API Examples](api-examples.md)** - Common API usage patterns
+- **[CLI Examples](cli-api-examples.md)** - Command-line interface examples
+- **[Configuration Guide](configuration.md)** - Environment variables and configuration options
 
-### Interactive Documentation
-- **[Swagger UI](http://localhost:9000/swagger-ui/)** - Interactive API explorer *(requires running server)*
-- **[OpenAPI Spec](http://localhost:9000/api-docs/openapi.json)** - OpenAPI 3.0 specification *(requires running server)*
-
-### CLI Documentation
-- **[CLI Reference](cli-api-examples.md)** - Command-line interface examples
-- **[CLI Usage Guide](cli-usage.md)** - Detailed CLI commands and options
-- **[Interactive Mode](cli-interactive.md)** - Using the interactive shell
-
-## 🏗️ Architecture & Design
-
-- **[System Architecture](architecture.md)** - High-level system design
-- **[Database Schema](database.md)** - PostgreSQL database structure
+### System Documentation
 - **[RBAC System](rbac.md)** - Role-based access control explained
-- **[Security Model](security.md)** - Security architecture and best practices
 
-## 🔧 Operations & Deployment
+### Interactive Documentation (requires running server)
+- **[Swagger UI](http://localhost:9000/swagger-ui/)** - Interactive API explorer
+- **[OpenAPI Spec](http://localhost:9000/api-docs/openapi.json)** - OpenAPI 3.0 specification
 
-### Deployment
-- **[Deployment Guide](deployment.md)** - Production deployment instructions
-- **[Kubernetes Setup](k8s-setup.md)** - Kubernetes deployment guide
-- **[Configuration](configuration.md)** - Configuration options and environment variables
+## 🔧 Quick Reference
 
-### Monitoring & Maintenance
-- **[Monitoring Guide](monitoring.md)** - Metrics, logs, and alerts
-- **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
-- **[Backup & Recovery](backup-recovery.md)** - Data backup strategies
+### Environment Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RAWORC_HOST` | Server bind address | `0.0.0.0` |
+| `RAWORC_PORT` | Server port | `9000` |
+| `DATABASE_URL` | PostgreSQL connection | `postgresql://postgres@localhost/raworc` |
+| `JWT_SECRET` | JWT signing secret | `super-secret-key` |
 
-## 👩‍💻 Development
+### Common Commands
+```bash
+# Server management
+raworc start              # Start server in foreground
+raworc serve              # Start as daemon (Unix only)
+raworc stop               # Stop daemon
+raworc status             # Check authentication status
 
-- **[Development Setup](development.md)** - Local development environment
-- **[Contributing Guide](contributing.md)** - How to contribute to Raworc
-- **[Code Structure](code-structure.md)** - Understanding the codebase
-- **[Testing Guide](testing.md)** - Running and writing tests
+# Authentication
+raworc auth               # Interactive authentication
 
-## 📖 Guides & Tutorials
+# Interactive CLI
+raworc connect            # Connect to server
+raworc> /api version      # Get API version
+raworc> /api auth/me      # Get current user info
+raworc> /help             # Show available commands
+```
 
-### Use Cases
-- **[Agent Deployment](guides/agent-deployment.md)** - Deploying AI agents
-- **[Session Management](guides/session-management.md)** - Managing user sessions
-- **[RBAC Patterns](guides/rbac-patterns.md)** - Common RBAC configurations
-
-### Integration Guides
-- **[API Client Examples](api-clients.md)** - Client libraries in various languages
-- **[Webhook Integration](webhooks.md)** - Setting up webhooks
-- **[External Auth](external-auth.md)** - Integrating with external authentication
-
-## 📊 Reference
-
-### API Reference
-- **[REST Endpoints](rest-api.md#api-endpoints)** - All API endpoints
-- **[Data Models](data-models.md)** - Request/response schemas
-- **[Error Codes](error-codes.md)** - API error code reference
-
-### Configuration Reference
-- **[Environment Variables](env-vars.md)** - All environment variables
-- **[CLI Flags](cli-flags.md)** - Command-line flag reference
-- **[Config Files](config-files.md)** - Configuration file formats
-
-## 🔍 Additional Resources
+## 🔍 External Resources
 
 ### Community
 - **[GitHub Repository](https://github.com/raworc/raworc)** - Source code
 - **[Issue Tracker](https://github.com/raworc/raworc/issues)** - Report bugs or request features
-- **[Discussions](https://github.com/raworc/raworc/discussions)** - Community discussions
 
 ### External Links
-- **[Website](https://raworc.com)** - Official website
 - **[Twitter/X](https://x.com/raworc)** - Latest updates
-- **[Blog](https://raworc.com/blog)** - Technical articles and updates
 
 ## 📝 Version Information
 
@@ -94,4 +89,4 @@ Welcome to the Raworc documentation! This index provides quick access to all doc
 
 ---
 
-Can't find what you're looking for? [Open an issue](https://github.com/raworc/raworc/issues/new) or [join our discussions](https://github.com/raworc/raworc/discussions).
+Can't find what you're looking for? [Open an issue](https://github.com/raworc/raworc/issues/new)
