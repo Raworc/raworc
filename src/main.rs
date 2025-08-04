@@ -348,7 +348,7 @@ async fn validate_token(server_url: &str, token: &str) -> Result<Option<String>>
     let client = reqwest::Client::new();
 
     match client
-        .get(format!("{server_url}/api/v1/auth/me"))
+        .get(format!("{server_url}/api/v0/auth/me"))
         .header("Authorization", format!("Bearer {token}"))
         .send()
         .await
@@ -420,7 +420,7 @@ async fn auth_login() -> Result<()> {
     });
 
     let response = client
-        .post(format!("{server_url}/api/v1/auth/internal"))
+        .post(format!("{server_url}/api/v0/auth/internal"))
         .header("Content-Type", "application/json")
         .json(&login_request)
         .send()
@@ -484,7 +484,7 @@ async fn get_auth_status() -> Result<String> {
             // Check server reachability using REST endpoint
             let client = reqwest::Client::new();
             let server_reachable = match client
-                .get(format!("{}/api/v1/version", config.server))
+                .get(format!("{}/api/v0/version", config.server))
                 .send()
                 .await
             {
@@ -625,9 +625,9 @@ fn show_connect_help() {
     println!("  /quit, /q, q, quit, exit         - Exit interactive mode");
     println!();
     println!(" Examples:");
-    println!("  /api version                     - GET /api/v1/version");
-    println!("  /api service-accounts            - GET /api/v1/service-accounts");
-    println!("  /api GET roles                   - GET /api/v1/roles");
+    println!("  /api version                     - GET /api/v0/version");
+    println!("  /api service-accounts            - GET /api/v0/service-accounts");
+    println!("  /api GET roles                   - GET /api/v0/roles");
     println!("  /api POST roles {{\"name\":\"test\",\"rules\":[]}}");
     println!("  /api DELETE roles/test-role");
     println!("  /api PUT service-accounts/admin {{\"description\":\"Updated\"}}");
@@ -681,7 +681,7 @@ async fn execute_api_request(server_url: &str, input: &str) -> Result<()> {
     };
 
     let client = reqwest::Client::new();
-    let url = format!("{server_url}/api/v1/{endpoint}");
+    let url = format!("{server_url}/api/v0/{endpoint}");
     
     let mut request = match method.as_str() {
         "GET" => client.get(&url),

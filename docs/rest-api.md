@@ -4,7 +4,7 @@
 
 Raworc provides a comprehensive REST API for managing platform operations, authentication, and role-based access control.
 
-- **Base URL**: `/api/v1`
+- **Base URL**: `/api/v0`
 - **Authentication**: Bearer token (JWT)
 - **Content-Type**: `application/json`
 
@@ -39,7 +39,7 @@ Get API version information.
 ```json
 {
   "version": "0.1.0",
-  "api": "v1"
+  "api": "v0"
 }
 ```
 

@@ -84,7 +84,7 @@ raworc> /help             # Show available commands
 ## 📝 Version Information
 
 - **Current Version**: 0.1.0
-- **API Version**: v1
+- **API Version**: v0
 - **Last Updated**: January 2025
 
 ---

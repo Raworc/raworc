@@ -102,7 +102,7 @@ impl Modify for SecurityAddon {
 // Health endpoints
 #[utoipa::path(
     get,
-    path = "/api/v1/health",
+    path = "/api/v0/health",
     tag = "Health",
     responses(
         (status = 200, description = "Service is healthy"),
@@ -113,7 +113,7 @@ pub async fn health() {}
 
 #[utoipa::path(
     get,
-    path = "/api/v1/version",
+    path = "/api/v0/version",
     tag = "Health",
     responses(
         (status = 200, description = "API version", body = String),
@@ -125,7 +125,7 @@ pub async fn version() {}
 // Auth endpoints
 #[utoipa::path(
     post,
-    path = "/api/v1/auth/internal",
+    path = "/api/v0/auth/internal",
     tag = "Auth",
     request_body = LoginRequest,
     responses(
@@ -138,7 +138,7 @@ pub async fn login() {}
 
 #[utoipa::path(
     post,
-    path = "/api/v1/auth/external",
+    path = "/api/v0/auth/external",
     tag = "Auth",
     request_body = ExternalLoginRequest,
     security(
@@ -155,7 +155,7 @@ pub async fn external_login() {}
 
 #[utoipa::path(
     get,
-    path = "/api/v1/auth/me",
+    path = "/api/v0/auth/me",
     tag = "Auth",
     security(
         ("bearer_auth" = [])
@@ -171,7 +171,7 @@ pub async fn me() {}
 // Service Account endpoints
 #[utoipa::path(
     get,
-    path = "/api/v1/service-accounts",
+    path = "/api/v0/service-accounts",
     tag = "Service Accounts",
     security(
         ("bearer_auth" = [])
@@ -187,7 +187,7 @@ pub async fn list_service_accounts() {}
 
 #[utoipa::path(
     get,
-    path = "/api/v1/service-accounts/{id}",
+    path = "/api/v0/service-accounts/{id}",
     tag = "Service Accounts",
     security(
         ("bearer_auth" = [])
@@ -207,7 +207,7 @@ pub async fn get_service_account() {}
 
 #[utoipa::path(
     post,
-    path = "/api/v1/service-accounts",
+    path = "/api/v0/service-accounts",
     tag = "Service Accounts",
     request_body = CreateServiceAccountRequest,
     security(
@@ -226,7 +226,7 @@ pub async fn create_service_account() {}
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/service-accounts/{id}",
+    path = "/api/v0/service-accounts/{id}",
     tag = "Service Accounts",
     security(
         ("bearer_auth" = [])
@@ -247,7 +247,7 @@ pub async fn delete_service_account() {}
 // Role endpoints
 #[utoipa::path(
     get,
-    path = "/api/v1/roles",
+    path = "/api/v0/roles",
     tag = "Roles",
     security(
         ("bearer_auth" = [])
@@ -263,7 +263,7 @@ pub async fn list_roles() {}
 
 #[utoipa::path(
     get,
-    path = "/api/v1/roles/{id}",
+    path = "/api/v0/roles/{id}",
     tag = "Roles",
     security(
         ("bearer_auth" = [])
@@ -283,7 +283,7 @@ pub async fn get_role() {}
 
 #[utoipa::path(
     post,
-    path = "/api/v1/roles",
+    path = "/api/v0/roles",
     tag = "Roles",
     request_body = CreateRoleRequest,
     security(
@@ -302,7 +302,7 @@ pub async fn create_role() {}
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/roles/{id}",
+    path = "/api/v0/roles/{id}",
     tag = "Roles",
     security(
         ("bearer_auth" = [])
@@ -323,7 +323,7 @@ pub async fn delete_role() {}
 // Role Binding endpoints
 #[utoipa::path(
     get,
-    path = "/api/v1/role-bindings",
+    path = "/api/v0/role-bindings",
     tag = "Role Bindings",
     security(
         ("bearer_auth" = [])
@@ -339,7 +339,7 @@ pub async fn list_role_bindings() {}
 
 #[utoipa::path(
     get,
-    path = "/api/v1/role-bindings/{id}",
+    path = "/api/v0/role-bindings/{id}",
     tag = "Role Bindings",
     security(
         ("bearer_auth" = [])
@@ -359,7 +359,7 @@ pub async fn get_role_binding() {}
 
 #[utoipa::path(
     post,
-    path = "/api/v1/role-bindings",
+    path = "/api/v0/role-bindings",
     tag = "Role Bindings",
     request_body = CreateRoleBindingRequest,
     security(
@@ -378,7 +378,7 @@ pub async fn create_role_binding() {}
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/role-bindings/{id}",
+    path = "/api/v0/role-bindings/{id}",
     tag = "Role Bindings",
     security(
         ("bearer_auth" = [])
@@ -399,7 +399,7 @@ pub async fn delete_role_binding() {}
 // Agent endpoints
 #[utoipa::path(
     get,
-    path = "/api/v1/agents",
+    path = "/api/v0/agents",
     tag = "Agents",
     security(
         ("bearer_auth" = [])
@@ -415,7 +415,7 @@ pub async fn list_agents() {}
 
 #[utoipa::path(
     get,
-    path = "/api/v1/agents/{id}",
+    path = "/api/v0/agents/{id}",
     tag = "Agents",
     security(
         ("bearer_auth" = [])
@@ -435,7 +435,7 @@ pub async fn get_agent() {}
 
 #[utoipa::path(
     post,
-    path = "/api/v1/agents",
+    path = "/api/v0/agents",
     tag = "Agents",
     request_body = CreateAgentRequest,
     security(
@@ -454,7 +454,7 @@ pub async fn create_agent() {}
 
 #[utoipa::path(
     put,
-    path = "/api/v1/agents/{id}",
+    path = "/api/v0/agents/{id}",
     tag = "Agents",
     request_body = UpdateAgentRequest,
     security(
@@ -477,7 +477,7 @@ pub async fn update_agent() {}
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/agents/{id}",
+    path = "/api/v0/agents/{id}",
     tag = "Agents",
     security(
         ("bearer_auth" = [])
