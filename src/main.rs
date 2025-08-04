@@ -6,6 +6,7 @@ mod rbac;
 mod rest;
 
 use anyhow::Result;
+#[cfg(unix)]
 use daemonize::Daemonize;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
@@ -74,8 +75,16 @@ fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
 
     // Handle daemon mode first (no tokio runtime needed)
+    #[cfg(unix)]
     if args.len() >= 2 && args[1] == "serve" {
         return start_server_daemon();
+    }
+    
+    #[cfg(not(unix))]
+    if args.len() >= 2 && args[1] == "serve" {
+        eprintln!("Error: 'serve' command is not supported on Windows.");
+        eprintln!("Please use 'raworc start' to run the server in foreground mode.");
+        return Err(anyhow::anyhow!("Unsupported command on Windows"));
     }
 
     // For all other commands, use tokio runtime
@@ -167,6 +176,7 @@ async fn start_server() -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
 fn start_server_daemon() -> Result<()> {
     use std::fs;
     use std::path::Path;
@@ -752,6 +762,7 @@ fn print_help() {
     println!("COMMANDS:");
     println!("    (default)          Connect to authenticated server");
     println!("    start              Start the Raworc server in foreground");
+    #[cfg(unix)]
     println!("    serve              Start the Raworc server as daemon");
     println!("    stop               Stop the running Raworc server");
     println!("    connect            Connect to authenticated server");
