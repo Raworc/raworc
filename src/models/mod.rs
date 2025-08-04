@@ -2,8 +2,10 @@ use thiserror::Error;
 use sqlx::{Pool, Postgres};
 
 pub mod agent;
+pub mod session;
 
 pub use agent::{Agent, CreateAgentRequest, UpdateAgentRequest};
+pub use session::{Session, SessionLifecycle, CreateSessionRequest, RemixSessionRequest, UpdateSessionStateRequest, UpdateSessionRequest};
 
 // Database errors
 #[derive(Error, Debug)]
