@@ -1,6 +1,7 @@
 use async_graphql::{Enum, InputObject, Object, SimpleObject};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // RBAC Subject - External user identifier
 #[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
@@ -12,7 +13,7 @@ pub struct Subject {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceAccount {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<surrealdb::sql::Thing>,
+    pub id: Option<Uuid>,
     pub user: String,
     pub namespace: Option<String>, // Optional namespace for organization
     pub pass_hash: String,
@@ -68,7 +69,7 @@ pub struct Rule {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Role {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<surrealdb::sql::Thing>,
+    pub id: Option<Uuid>,
     pub name: String,
     pub namespace: Option<String>, // None for cluster-wide roles
     pub rules: Vec<Rule>,
@@ -125,7 +126,7 @@ pub struct RoleBindingSubject {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleBinding {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<surrealdb::sql::Thing>,
+    pub id: Option<Uuid>,
     pub name: String,
     pub namespace: Option<String>,
     pub role_ref: RoleRef,

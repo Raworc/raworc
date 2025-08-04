@@ -27,8 +27,8 @@ Rather than running persistent agents, Raworc organizes work into discrete, mana
 - **Raworc Service**: GraphQL server in Rust for platform operations
 
 **Data Layer:**
-- **SurrealDB**: Database for admins, agents, sessions with SurrealQL
-- **TiKV**: Storage engine for data persistence
+- **PostgreSQL**: Primary database for admins, agents, sessions, and RBAC
+- **RBAC System**: Role-based access control with JWT authentication
 
 **Session Runtime:**
 - **Container Per Session**: Isolated environments for each user session
@@ -66,7 +66,7 @@ Rather than running persistent agents, Raworc organizes work into discrete, mana
 ## Tech Stack
 
 - **Backend**: Rust
-- **Database**: SurrealDB with TiKV engine
+- **Database**: PostgreSQL
 - **API**: GraphQL
 - **Orchestration**: Kubernetes
 - **Storage**: Kubernetes Persistent Volumes
