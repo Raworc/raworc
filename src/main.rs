@@ -6,6 +6,7 @@ mod rbac;
 mod rest;
 
 use anyhow::Result;
+#[cfg(unix)]
 use daemonize::Daemonize;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
@@ -74,8 +75,16 @@ fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
 
     // Handle daemon mode first (no tokio runtime needed)
+    #[cfg(unix)]
     if args.len() >= 2 && args[1] == "serve" {
         return start_server_daemon();
+    }
+    
+    #[cfg(not(unix))]
+    if args.len() >= 2 && args[1] == "serve" {
+        eprintln!("Error: 'serve' command is not supported on Windows.");
+        eprintln!("Please use 'raworc start' to run the server in foreground mode.");
+        return Err(anyhow::anyhow!("Unsupported command on Windows"));
     }
 
     // For all other commands, use tokio runtime
@@ -167,6 +176,7 @@ async fn start_server() -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
 fn start_server_daemon() -> Result<()> {
     use std::fs;
     use std::path::Path;
@@ -247,37 +257,62 @@ fn start_server_daemon() -> Result<()> {
 
 async fn stop_server() -> Result<()> {
     use std::fs;
-    use std::process;
 
+    #[cfg(unix)]
     let pid_file = "/tmp/raworc.pid";
+    #[cfg(windows)]
+    let pid_file = std::env::temp_dir().join("raworc.pid");
 
-    match fs::read_to_string(pid_file) {
+    match fs::read_to_string(&pid_file) {
         Ok(pid_str) => {
             match pid_str.trim().parse::<u32>() {
                 Ok(pid) => {
                     println!("Stopping Raworc server (PID: {pid})...");
 
                     // Try to kill the process
-                    match process::Command::new("kill").arg(pid.to_string()).output() {
-                        Ok(output) => {
-                            if output.status.success() {
-                                println!("Server stopped successfully.");
-                                // Remove PID file
-                                let _ = fs::remove_file(pid_file);
-                            } else {
-                                eprintln!(
-                                    "Failed to stop server: {stderr}",
-                                    stderr = String::from_utf8_lossy(&output.stderr)
-                                );
+                    #[cfg(unix)]
+                    {
+                        use std::process::Command;
+                        match Command::new("kill").arg(pid.to_string()).output() {
+                            Ok(output) => {
+                                if output.status.success() {
+                                    println!("Server stopped successfully.");
+                                    // Remove PID file
+                                    let _ = fs::remove_file(pid_file);
+                                } else {
+                                    eprintln!("Failed to stop server: {}", String::from_utf8_lossy(&output.stderr));
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to execute kill command: {e}");
                             }
                         }
-                        Err(e) => {
-                            eprintln!("Failed to execute kill command: {e}");
+                    }
+                    
+                    #[cfg(windows)]
+                    {
+                        use std::process::Command;
+                        match Command::new("taskkill").args(&["/F", "/PID", &pid.to_string()]).output() {
+                            Ok(output) => {
+                                if output.status.success() {
+                                    println!("Server stopped successfully.");
+                                    // Remove PID file
+                                    let _ = fs::remove_file(pid_file);
+                                } else {
+                                    eprintln!("Failed to stop server: {}", String::from_utf8_lossy(&output.stderr));
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to execute taskkill command: {e}");
+                            }
                         }
                     }
                 }
                 Err(_) => {
-                    eprintln!("Invalid PID in {pid_file}");
+                    #[cfg(unix)]
+                    eprintln!("Invalid PID in {}", pid_file);
+                    #[cfg(windows)]
+                    eprintln!("Invalid PID in {}", pid_file.display());
                     let _ = fs::remove_file(pid_file);
                 }
             }
@@ -752,6 +787,7 @@ fn print_help() {
     println!("COMMANDS:");
     println!("    (default)          Connect to authenticated server");
     println!("    start              Start the Raworc server in foreground");
+    #[cfg(unix)]
     println!("    serve              Start the Raworc server as daemon");
     println!("    stop               Stop the running Raworc server");
     println!("    connect            Connect to authenticated server");
