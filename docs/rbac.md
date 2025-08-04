@@ -130,7 +130,7 @@ Tokens include the following claims:
 ## API Endpoints
 
 See the [REST API Documentation](rest-api.md) for detailed information on RBAC-related endpoints:
-- `/auth/login` - Authenticate and get token
+- `/auth/internal` - Authenticate and get token
 - `/service-accounts` - Manage service accounts
 - `/roles` - Manage roles
 - `/role-bindings` - Manage role bindings

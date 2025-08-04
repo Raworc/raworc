@@ -17,7 +17,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let public_routes = Router::new()
         .route("/health", get(health))
         .route("/version", get(version))
-        .route("/auth/login", post(auth::login))
+        .route("/auth/internal", post(auth::login))
         .route("/auth/external", post(auth::external_login));
     
     // Protected routes

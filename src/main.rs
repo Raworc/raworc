@@ -420,7 +420,7 @@ async fn auth_login() -> Result<()> {
     });
 
     let response = client
-        .post(format!("{server_url}/api/v1/auth/login"))
+        .post(format!("{server_url}/api/v1/auth/internal"))
         .header("Content-Type", "application/json")
         .json(&login_request)
         .send()
