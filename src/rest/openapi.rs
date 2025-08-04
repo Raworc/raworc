@@ -127,7 +127,7 @@ pub async fn login() {}
 
 #[utoipa::path(
     post,
-    path = "/api/v1/auth/external-login",
+    path = "/api/v1/auth/external",
     tag = "Auth",
     request_body = ExternalLoginRequest,
     security(
