@@ -82,7 +82,7 @@ PID: {}
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
 
     info!("Server started successfully!");
-    info!("REST API Endpoint: http://{}:{}/api/v1", host, port);
+    info!("REST API Endpoint: http://{}:{}/api/v0", host, port);
     info!("Swagger UI: http://{}:{}/swagger-ui/", host, port);
     info!("OpenAPI JSON: http://{}:{}/api-docs/openapi.json", host, port);
     info!("Ready to accept requests...");

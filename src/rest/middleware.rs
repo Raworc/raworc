@@ -28,9 +28,9 @@ pub async fn auth_middleware(
 ) -> Result<Response, StatusCode> {
     // Skip auth for public endpoints
     let path = request.uri().path();
-    if path == "/api/v1/health" || 
-       path == "/api/v1/version" || 
-       path.starts_with("/api/v1/auth/") ||
+    if path == "/api/v0/health" || 
+       path == "/api/v0/version" || 
+       path.starts_with("/api/v0/auth/") ||
        path.starts_with("/swagger-ui") ||
        path == "/api-docs/openapi.json" {
         return Ok(next.run(request).await);

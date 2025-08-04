@@ -49,7 +49,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let api_routes = public_routes.merge(protected_routes).with_state(state.clone());
 
     Router::new()
-        .nest("/api/v1", api_routes)
+        .nest("/api/v0", api_routes)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .layer(middleware::from_fn(request_logging_middleware))
         .layer(TraceLayer::new_for_http())
@@ -62,6 +62,6 @@ async fn health() -> StatusCode {
 async fn version() -> axum::Json<serde_json::Value> {
     axum::Json(serde_json::json!({
         "version": "0.1.0",
-        "api": "v1"
+        "api": "v0"
     }))
 }
