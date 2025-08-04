@@ -4,15 +4,20 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use crate::auth::{decode_jwt, check_permission};
+use crate::auth::decode_jwt;
+#[allow(unused_imports)]
+use crate::auth::check_permission;
 use crate::models::AppState;
-use crate::rbac::{AuthPrincipal, RbacClaims, Subject, SubjectType, PermissionContext};
+use crate::rbac::{AuthPrincipal, RbacClaims, Subject, SubjectType};
+#[allow(unused_imports)]
+use crate::rbac::PermissionContext;
 use std::sync::Arc;
 use tracing::info;
 
 #[derive(Clone)]
 pub struct AuthContext {
     pub principal: AuthPrincipal,
+    #[allow(dead_code)]
     pub claims: RbacClaims,
 }
 
@@ -87,6 +92,7 @@ pub async fn auth_middleware(
     Ok(next.run(request).await)
 }
 
+#[allow(dead_code)]
 pub async fn require_permission(
     api_group: &str,
     resource: &str,

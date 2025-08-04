@@ -1,10 +1,9 @@
 use crate::models::{AppState, DatabaseError};
 use crate::rbac::{
-    AuthPrincipal, PermissionContext, RbacAuthz, RbacClaims, ServiceAccount, Subject, SubjectType,
+    AuthPrincipal, PermissionContext, RbacAuthz, RbacClaims, ServiceAccount, SubjectType,
     TokenResponse,
 };
 use anyhow::Result;
-use axum::http::HeaderMap;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 
@@ -86,6 +85,7 @@ pub fn decode_rbac_jwt(token: &str, secret: &str) -> Result<RbacClaims> {
 }
 
 // Permission checking function
+#[allow(dead_code)]
 pub async fn check_permission(
     principal: &AuthPrincipal,
     app_state: &AppState,
@@ -131,6 +131,7 @@ pub fn decode_jwt(token: &str, secret: &str) -> Result<RbacClaims> {
 }
 
 // Get permissions for a principal
+#[allow(dead_code)]
 pub async fn get_permissions_for_principal(
     principal: &AuthPrincipal,
     app_state: &AppState,

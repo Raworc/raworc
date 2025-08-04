@@ -97,6 +97,7 @@ impl Modify for SecurityAddon {
         (status = 200, description = "Service is healthy"),
     ),
 )]
+#[allow(dead_code)]
 pub async fn health() {}
 
 #[utoipa::path(
@@ -107,6 +108,7 @@ pub async fn health() {}
         (status = 200, description = "API version", body = String),
     ),
 )]
+#[allow(dead_code)]
 pub async fn version() {}
 
 // Auth endpoints
@@ -120,6 +122,7 @@ pub async fn version() {}
         (status = 401, description = "Invalid credentials", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn login() {}
 
 #[utoipa::path(
@@ -136,6 +139,7 @@ pub async fn login() {}
         (status = 403, description = "Admin access required", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn external_login() {}
 
 #[utoipa::path(
@@ -150,6 +154,7 @@ pub async fn external_login() {}
         (status = 401, description = "Unauthorized", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn me() {}
 
 // Service Account endpoints
@@ -166,6 +171,7 @@ pub async fn me() {}
         (status = 403, description = "Insufficient permissions", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn list_service_accounts() {}
 
 #[utoipa::path(
@@ -185,6 +191,7 @@ pub async fn list_service_accounts() {}
         (status = 404, description = "Service account not found", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn get_service_account() {}
 
 #[utoipa::path(
@@ -203,6 +210,7 @@ pub async fn get_service_account() {}
         (status = 409, description = "Service account already exists", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn create_service_account() {}
 
 #[utoipa::path(
@@ -222,6 +230,7 @@ pub async fn create_service_account() {}
         (status = 404, description = "Service account not found", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn delete_service_account() {}
 
 // Role endpoints
@@ -238,6 +247,7 @@ pub async fn delete_service_account() {}
         (status = 403, description = "Insufficient permissions", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn list_roles() {}
 
 #[utoipa::path(
@@ -257,6 +267,7 @@ pub async fn list_roles() {}
         (status = 404, description = "Role not found", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn get_role() {}
 
 #[utoipa::path(
@@ -275,6 +286,7 @@ pub async fn get_role() {}
         (status = 409, description = "Role already exists", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn create_role() {}
 
 #[utoipa::path(
@@ -294,6 +306,7 @@ pub async fn create_role() {}
         (status = 404, description = "Role not found", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn delete_role() {}
 
 // Role Binding endpoints
@@ -310,6 +323,7 @@ pub async fn delete_role() {}
         (status = 403, description = "Insufficient permissions", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn list_role_bindings() {}
 
 #[utoipa::path(
@@ -329,6 +343,7 @@ pub async fn list_role_bindings() {}
         (status = 404, description = "Role binding not found", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn get_role_binding() {}
 
 #[utoipa::path(
@@ -347,6 +362,7 @@ pub async fn get_role_binding() {}
         (status = 409, description = "Role binding already exists", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn create_role_binding() {}
 
 #[utoipa::path(
@@ -366,4 +382,5 @@ pub async fn create_role_binding() {}
         (status = 404, description = "Role binding not found", body = ErrorResponse),
     ),
 )]
+#[allow(dead_code)]
 pub async fn delete_role_binding() {}

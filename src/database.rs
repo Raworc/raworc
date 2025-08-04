@@ -336,6 +336,7 @@ impl AppState {
         }).collect())
     }
 
+    #[allow(dead_code)]
     pub async fn get_role_bindings_for_subject(
         &self,
         subject_name: &str,
