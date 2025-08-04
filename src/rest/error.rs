@@ -25,12 +25,14 @@ pub struct ErrorDetails {
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
     #[error("Bad request: {0}")]
+    #[allow(dead_code)]
     BadRequest(String),
     
     #[error("Unauthorized")]
     Unauthorized,
     
     #[error("Forbidden: {0}")]
+    #[allow(dead_code)]
     Forbidden(String),
     
     #[error("Not found: {0}")]

@@ -89,6 +89,7 @@ pub enum AuthPrincipal {
 }
 
 impl AuthPrincipal {
+    #[allow(dead_code)]
     pub fn name(&self) -> &str {
         match self {
             AuthPrincipal::Subject(s) => &s.name,
@@ -96,6 +97,7 @@ impl AuthPrincipal {
         }
     }
 
+    #[allow(dead_code)]
     pub fn namespace(&self) -> Option<&str> {
         match self {
             AuthPrincipal::Subject(_) => None,
@@ -103,6 +105,7 @@ impl AuthPrincipal {
         }
     }
 
+    #[allow(dead_code)]
     pub fn subject_type(&self) -> SubjectType {
         match self {
             AuthPrincipal::Subject(_) => SubjectType::Subject,
@@ -124,6 +127,7 @@ pub struct RbacClaims {
 
 // Input types for API requests
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct CreateServiceAccountInput {
     pub user: String,
     pub namespace: Option<String>,
@@ -132,6 +136,7 @@ pub struct CreateServiceAccountInput {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct CreateRoleInput {
     pub name: String,
     pub namespace: Option<String>,
@@ -140,6 +145,7 @@ pub struct CreateRoleInput {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct RuleInput {
     pub api_groups: Vec<String>,
     pub resources: Vec<String>,
@@ -148,6 +154,7 @@ pub struct RuleInput {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct CreateRoleBindingInput {
     pub name: String,
     pub namespace: Option<String>,
@@ -156,6 +163,7 @@ pub struct CreateRoleBindingInput {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct RoleRefInput {
     pub kind: String,
     pub name: String,
@@ -163,6 +171,7 @@ pub struct RoleRefInput {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct RoleBindingSubjectInput {
     pub kind: SubjectType,
     pub name: String,
@@ -178,6 +187,7 @@ pub struct TokenResponse {
 
 // Permission check context
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PermissionContext {
     pub api_group: String,
     pub resource: String,
@@ -188,6 +198,7 @@ pub struct PermissionContext {
 }
 
 impl PermissionContext {
+    #[allow(dead_code)]
     pub fn new(api_group: &str, resource: &str, verb: &str) -> Self {
         Self {
             api_group: api_group.to_string(),
@@ -198,6 +209,7 @@ impl PermissionContext {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_resource_name(mut self, name: &str) -> Self {
         self.resource_name = Some(name.to_string());
         self
@@ -211,10 +223,12 @@ impl PermissionContext {
 }
 
 // RBAC Authorization service
+#[allow(dead_code)]
 pub struct RbacAuthz;
 
 impl RbacAuthz {
     // Check if a principal has permission for a given context
+    #[allow(dead_code)]
     pub fn has_permission(
         principal: &AuthPrincipal,
         roles: &[Role],
@@ -240,6 +254,7 @@ impl RbacAuthz {
             .any(|role| Self::role_grants_permission(role, context))
     }
 
+    #[allow(dead_code)]
     fn get_applicable_bindings<'a>(
         principal: &AuthPrincipal,
         role_bindings: &'a [RoleBinding],
@@ -256,6 +271,7 @@ impl RbacAuthz {
             .collect()
     }
 
+    #[allow(dead_code)]
     fn role_matches_binding(role: &Role, binding: &RoleBinding) -> bool {
         // Check if role namespace matches binding namespace context
         match (&role.namespace, &binding.namespace) {
@@ -265,12 +281,14 @@ impl RbacAuthz {
         }
     }
 
+    #[allow(dead_code)]
     fn role_grants_permission(role: &Role, context: &PermissionContext) -> bool {
         role.rules
             .iter()
             .any(|rule| Self::rule_grants_permission(rule, context))
     }
 
+    #[allow(dead_code)]
     fn rule_grants_permission(rule: &Rule, context: &PermissionContext) -> bool {
         // Check API groups
         let api_group_match = rule.api_groups.contains(&"*".to_string())
