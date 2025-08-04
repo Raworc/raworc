@@ -1,9 +1,9 @@
 mod auth;
 mod database;
-mod graphql;
 mod logging;
 mod models;
 mod rbac;
+mod rest;
 
 use anyhow::Result;
 use daemonize::Daemonize;
@@ -32,7 +32,7 @@ impl Completer for RaworcHelper {
         _pos: usize,
         _ctx: &Context<'_>,
     ) -> RustylineResult<(usize, Vec<Pair>)> {
-        let commands = ["/help", "/status", "/quit", "/q", "/graphql"];
+        let commands = ["/help", "/status", "/quit", "/q", "/api"];
 
         if line.is_empty() || line.starts_with('/') {
             let matches: Vec<Pair> = commands
@@ -162,7 +162,7 @@ async fn start_server() -> Result<()> {
     }
 
     info!("Starting Raworc server in foreground mode...");
-    graphql::run_graphql_server().await?;
+    rest::run_rest_server().await?;
 
     Ok(())
 }
@@ -229,7 +229,7 @@ fn start_server_daemon() -> Result<()> {
             // Create a new tokio runtime for the daemon process
             let rt = tokio::runtime::Runtime::new()?;
             rt.block_on(async {
-                if let Err(e) = graphql::run_graphql_server().await {
+                if let Err(e) = rest::run_rest_server().await {
                     error!("Daemon server error: {}", e);
                     std::process::exit(1);
                 }
@@ -336,27 +336,18 @@ fn load_auth_config() -> Result<Option<AuthConfig>> {
 
 async fn validate_token(server_url: &str, token: &str) -> Result<Option<String>> {
     let client = reqwest::Client::new();
-    let query = json!({
-        "query": "{ whoami }"
-    });
 
     match client
-        .post(format!("{server_url}/graphql"))
+        .get(format!("{server_url}/api/v1/auth/me"))
         .header("Authorization", format!("Bearer {token}"))
-        .header("Content-Type", "application/json")
-        .json(&query)
         .send()
         .await
     {
         Ok(response) => {
             if response.status().is_success() {
                 if let Ok(result) = response.json::<Value>().await {
-                    if let Some(data) = result.get("data") {
-                        if let Some(whoami) = data.get("whoami") {
-                            if let Some(user) = whoami.as_str() {
-                                return Ok(Some(user.to_string()));
-                            }
-                        }
+                    if let Some(user) = result.get("user").and_then(|u| u.as_str()) {
+                        return Ok(Some(user.to_string()));
                     }
                 }
             }
@@ -413,40 +404,31 @@ async fn auth_login() -> Result<()> {
     println!("Authenticating...");
 
     let client = reqwest::Client::new();
-    let mutation = json!({
-        "query": format!(
-            "mutation {{ generateServiceToken(input: {{user: \"{}\", pass: \"{}\"}}) {{ token expiresAt }} }}",
-            username, password
-        )
+    let login_request = json!({
+        "user": username,
+        "pass": password
     });
 
     let response = client
-        .post(format!("{server_url}/graphql"))
+        .post(format!("{server_url}/api/v1/auth/login"))
         .header("Content-Type", "application/json")
-        .json(&mutation)
+        .json(&login_request)
         .send()
         .await?;
 
     if response.status().is_success() {
         let result: Value = response.json().await?;
-        if let Some(data) = result.get("data") {
-            if let Some(token_data) = data.get("generateServiceToken") {
-                if let Some(token) = token_data.get("token").and_then(|t| t.as_str()) {
-                    store_auth_config(server_url, token).await?;
-                    if let Some(user) = validate_token(server_url, token).await? {
-                        println!();
-                        println!("✓ Authentication successful!");
-                        println!("   User: {user}");
-                        println!("   Server: {server_url}");
-                        println!();
-                        println!("You can now use 'raworc' to connect to this server.");
-                    }
-                    return Ok(());
-                }
+        if let Some(token) = result.get("token").and_then(|t| t.as_str()) {
+            store_auth_config(server_url, token).await?;
+            if let Some(user) = validate_token(server_url, token).await? {
+                println!();
+                println!("✓ Authentication successful!");
+                println!("   User: {user}");
+                println!("   Server: {server_url}");
+                println!();
+                println!("You can now use 'raworc' to connect to this server.");
             }
-        }
-        if let Some(errors) = result.get("errors") {
-            println!("✗ Authentication failed: {errors}");
+            return Ok(());
         } else {
             println!("✗ Authentication failed: Invalid response");
         }
@@ -489,16 +471,14 @@ async fn get_auth_status() -> Result<String> {
     // Check if auth config exists
     match load_auth_config()? {
         Some(config) => {
-            // Check server reachability using GraphQL endpoint
+            // Check server reachability using REST endpoint
             let client = reqwest::Client::new();
             let server_reachable = match client
-                .post(format!("{}/graphql", config.server))
-                .header("Content-Type", "application/json")
-                .json(&json!({"query": "{ __typename }"}))
+                .get(format!("{}/api/v1/version", config.server))
                 .send()
                 .await
             {
-                Ok(response) => response.status().is_success() || response.status().as_u16() == 400, // 400 is also OK (means server is responding)
+                Ok(response) => response.status().is_success(),
                 Err(_) => false,
             };
 
@@ -610,9 +590,9 @@ async fn connect_to_server() -> Result<()> {
                 println!(" {status}");
                 println!();
             }
-            line if line.starts_with("/graphql ") => {
-                let query = &line[9..]; // Remove "/graphql "
-                execute_graphql(&server_url, query).await?;
+            line if line.starts_with("/api ") => {
+                let parts = &line[5..]; // Remove "/api "
+                execute_api_request(&server_url, parts).await?;
                 println!();
             }
             _ => {
@@ -628,17 +608,22 @@ async fn connect_to_server() -> Result<()> {
 fn show_connect_help() {
     println!(" Available Commands:");
     println!();
-    println!("  /graphql <query>  - Execute GraphQL query");
-    println!("  /status          - Show server status");
-    println!("  /help            - Show this help");
-    println!("  /quit, /q, q, quit, exit - Exit interactive mode");
+    println!("  /api <METHOD> <endpoint> [json]  - Execute REST API request");
+    println!("  /api <endpoint>                  - Execute GET request (shorthand)");
+    println!("  /status                          - Show server status");
+    println!("  /help                            - Show this help");
+    println!("  /quit, /q, q, quit, exit         - Exit interactive mode");
     println!();
     println!(" Examples:");
-    println!("  /graphql {{ version status }}");
-    println!("  /graphql {{ serviceAccounts {{ name active }} }}");
+    println!("  /api version                     - GET /api/v1/version");
+    println!("  /api service-accounts            - GET /api/v1/service-accounts");
+    println!("  /api GET roles                   - GET /api/v1/roles");
+    println!("  /api POST roles {{\"name\":\"test\",\"rules\":[]}}");
+    println!("  /api DELETE roles/test-role");
+    println!("  /api PUT service-accounts/admin {{\"description\":\"Updated\"}}");
 }
 
-async fn execute_graphql(server_url: &str, query: &str) -> Result<()> {
+async fn execute_api_request(server_url: &str, input: &str) -> Result<()> {
     // Check authentication using same logic
     let config = match load_auth_config()? {
         Some(config) => {
@@ -654,41 +639,95 @@ async fn execute_graphql(server_url: &str, query: &str) -> Result<()> {
         }
     };
 
-    let client = reqwest::Client::new();
-    let graphql_query = json!({
-        "query": query
-    });
+    // Parse the command
+    let parts: Vec<&str> = input.split_whitespace().collect();
+    if parts.is_empty() {
+        println!("✗ No endpoint specified");
+        return Ok(());
+    }
 
-    let request = client
-        .post(format!("{server_url}/graphql"))
-        .header("Content-Type", "application/json")
-        .header(
-            "Authorization",
-            format!("Bearer {token}", token = config.token),
-        )
-        .json(&graphql_query);
+    let (method, endpoint, data) = if parts[0].to_uppercase() == "GET"
+        || parts[0].to_uppercase() == "POST"
+        || parts[0].to_uppercase() == "PUT"
+        || parts[0].to_uppercase() == "DELETE"
+    {
+        // Format: METHOD endpoint [data]
+        if parts.len() < 2 {
+            println!("✗ No endpoint specified after method");
+            return Ok(());
+        }
+        let method = parts[0].to_uppercase();
+        let endpoint = parts[1];
+        let data = if parts.len() > 2 {
+            // Join remaining parts as JSON data
+            Some(parts[2..].join(" "))
+        } else {
+            None
+        };
+        (method, endpoint, data)
+    } else {
+        // Format: endpoint (assumes GET)
+        ("GET".to_string(), parts[0], None)
+    };
+
+    let client = reqwest::Client::new();
+    let url = format!("{server_url}/api/v1/{endpoint}");
+    
+    let mut request = match method.as_str() {
+        "GET" => client.get(&url),
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "DELETE" => client.delete(&url),
+        _ => {
+            println!("✗ Unsupported HTTP method: {method}");
+            return Ok(());
+        }
+    };
+
+    request = request.header("Authorization", format!("Bearer {}", config.token));
+
+    // Add JSON body if provided
+    if let Some(json_data) = data {
+        // Validate JSON
+        match serde_json::from_str::<Value>(&json_data) {
+            Ok(_) => {
+                request = request
+                    .header("Content-Type", "application/json")
+                    .body(json_data);
+            }
+            Err(e) => {
+                println!("✗ Invalid JSON data: {e}");
+                return Ok(());
+            }
+        }
+    }
 
     match request.send().await {
         Ok(response) => {
-            if response.status().is_success() {
-                let result: Value = response.json().await?;
-                println!(" GraphQL Response:");
-                println!(
-                    "  {pretty_result}",
-                    pretty_result = serde_json::to_string_pretty(&result)?.replace('\n', "\n  ")
-                );
-            } else {
-                println!(
-                    "✗ GraphQL request failed: {status}",
-                    status = response.status()
-                );
-                if let Ok(error_text) = response.text().await {
-                    println!("Error: {error_text}");
+            let status = response.status();
+            println!(" {method} {endpoint} → {status}");
+            
+            if let Ok(text) = response.text().await {
+                if !text.is_empty() {
+                    // Try to parse and pretty-print JSON
+                    match serde_json::from_str::<Value>(&text) {
+                        Ok(json) => {
+                            println!(" Response:");
+                            let pretty = serde_json::to_string_pretty(&json)?;
+                            for line in pretty.lines() {
+                                println!("  {line}");
+                            }
+                        }
+                        Err(_) => {
+                            // Not JSON, print as-is
+                            println!(" Response: {text}");
+                        }
+                    }
                 }
             }
         }
         Err(e) => {
-            println!("✗ Failed to execute GraphQL query: {e}");
+            println!("✗ Failed to execute API request: {e}");
         }
     }
     Ok(())

@@ -1,10 +1,10 @@
-use async_graphql::{Enum, InputObject, Object, SimpleObject};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use utoipa::ToSchema;
 
 // RBAC Subject - External user identifier
-#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Subject {
     pub name: String, // External subject identifier (e.g., "user@example.com", "system:serviceaccount:namespace:name")
 }
@@ -22,44 +22,11 @@ pub struct ServiceAccount {
     pub active: bool,
 }
 
-#[Object]
-impl ServiceAccount {
-    async fn id(&self) -> String {
-        self.id
-            .as_ref()
-            .map(|id| id.to_string())
-            .unwrap_or_default()
-    }
-
-    async fn user(&self) -> &str {
-        &self.user
-    }
-
-    async fn namespace(&self) -> &Option<String> {
-        &self.namespace
-    }
-
-    async fn pass_hash(&self) -> &str {
-        &self.pass_hash
-    }
-
-    async fn description(&self) -> &Option<String> {
-        &self.description
-    }
-
-    async fn created_at(&self) -> &str {
-        &self.created_at
-    }
-
-    async fn active(&self) -> bool {
-        self.active
-    }
-}
 
 // Permission Rule - Fine-grained access control
-#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rule {
-    pub api_groups: Vec<String>,             // e.g., ["", "api", "graphql"]
+    pub api_groups: Vec<String>,             // e.g., ["", "api", "rbac"]
     pub resources: Vec<String>,              // e.g., ["users", "roles", "*"]
     pub verbs: Vec<String>,                  // e.g., ["get", "list", "create", "update", "delete"]
     pub resource_names: Option<Vec<String>>, // Optional specific resource names
@@ -77,45 +44,16 @@ pub struct Role {
     pub created_at: String,
 }
 
-#[Object]
-impl Role {
-    async fn id(&self) -> String {
-        self.id
-            .as_ref()
-            .map(|id| id.to_string())
-            .unwrap_or_default()
-    }
-
-    async fn name(&self) -> &str {
-        &self.name
-    }
-
-    async fn namespace(&self) -> &Option<String> {
-        &self.namespace
-    }
-
-    async fn rules(&self) -> &Vec<Rule> {
-        &self.rules
-    }
-
-    async fn description(&self) -> &Option<String> {
-        &self.description
-    }
-
-    async fn created_at(&self) -> &str {
-        &self.created_at
-    }
-}
 
 // Subject type for role bindings
-#[derive(Debug, Clone, Serialize, Deserialize, Enum, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Copy, PartialEq, Eq, ToSchema)]
 pub enum SubjectType {
     Subject,
     ServiceAccount,
 }
 
 // Role Binding Subject
-#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleBindingSubject {
     pub kind: SubjectType,
     pub name: String,
@@ -134,38 +72,9 @@ pub struct RoleBinding {
     pub created_at: String,
 }
 
-#[Object]
-impl RoleBinding {
-    async fn id(&self) -> String {
-        self.id
-            .as_ref()
-            .map(|id| id.to_string())
-            .unwrap_or_default()
-    }
-
-    async fn name(&self) -> &str {
-        &self.name
-    }
-
-    async fn namespace(&self) -> &Option<String> {
-        &self.namespace
-    }
-
-    async fn role_ref(&self) -> &RoleRef {
-        &self.role_ref
-    }
-
-    async fn subjects(&self) -> &Vec<RoleBindingSubject> {
-        &self.subjects
-    }
-
-    async fn created_at(&self) -> &str {
-        &self.created_at
-    }
-}
 
 // Role Reference for bindings
-#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleRef {
     pub kind: String, // "Role" or "ClusterRole"
     pub name: String,
@@ -203,7 +112,7 @@ impl AuthPrincipal {
 }
 
 // JWT Claims for RBAC authentication
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RbacClaims {
     pub sub: String,               // Subject name
     pub sub_type: SubjectType,     // Subject type
@@ -213,8 +122,8 @@ pub struct RbacClaims {
     pub iss: String,               // Issuer
 }
 
-// Input types for GraphQL mutations
-#[derive(Debug, InputObject)]
+// Input types for API requests
+#[derive(Debug, Deserialize)]
 pub struct CreateServiceAccountInput {
     pub user: String,
     pub namespace: Option<String>,
@@ -222,7 +131,7 @@ pub struct CreateServiceAccountInput {
     pub description: Option<String>,
 }
 
-#[derive(Debug, InputObject)]
+#[derive(Debug, Deserialize)]
 pub struct CreateRoleInput {
     pub name: String,
     pub namespace: Option<String>,
@@ -230,7 +139,7 @@ pub struct CreateRoleInput {
     pub description: Option<String>,
 }
 
-#[derive(Debug, InputObject)]
+#[derive(Debug, Deserialize)]
 pub struct RuleInput {
     pub api_groups: Vec<String>,
     pub resources: Vec<String>,
@@ -238,7 +147,7 @@ pub struct RuleInput {
     pub resource_names: Option<Vec<String>>,
 }
 
-#[derive(Debug, InputObject)]
+#[derive(Debug, Deserialize)]
 pub struct CreateRoleBindingInput {
     pub name: String,
     pub namespace: Option<String>,
@@ -246,14 +155,14 @@ pub struct CreateRoleBindingInput {
     pub subjects: Vec<RoleBindingSubjectInput>,
 }
 
-#[derive(Debug, InputObject)]
+#[derive(Debug, Deserialize)]
 pub struct RoleRefInput {
     pub kind: String,
     pub name: String,
     pub api_group: String,
 }
 
-#[derive(Debug, InputObject)]
+#[derive(Debug, Deserialize)]
 pub struct RoleBindingSubjectInput {
     pub kind: SubjectType,
     pub name: String,
@@ -261,7 +170,7 @@ pub struct RoleBindingSubjectInput {
 }
 
 // Token generation response
-#[derive(Debug, SimpleObject)]
+#[derive(Debug, Serialize)]
 pub struct TokenResponse {
     pub token: String,
     pub expires_at: String,

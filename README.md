@@ -24,7 +24,7 @@ Rather than running persistent agents, Raworc organizes work into discrete, mana
 
 **Control Plane:**
 - **Raworc Control CLI** (`raworc`): Developer interface for sessions and agents
-- **Raworc Service**: GraphQL server in Rust for platform operations
+- **Raworc Service**: REST API server in Rust for platform operations
 
 **Data Layer:**
 - **PostgreSQL**: Primary database for admins, agents, sessions, and RBAC
@@ -67,21 +67,40 @@ Rather than running persistent agents, Raworc organizes work into discrete, mana
 
 - **Backend**: Rust
 - **Database**: PostgreSQL
-- **API**: GraphQL
+- **API**: REST with OpenAPI/Swagger documentation
 - **Orchestration**: Kubernetes
 - **Storage**: Kubernetes Persistent Volumes
 
+## Documentation
+
+📚 **[View Full Documentation](docs/index.md)**
+
+### Quick Links
+- [Quick Start Guide](docs/quickstart.md) - Get running in 5 minutes
+- [REST API Reference](docs/rest-api.md) - Complete API documentation
+- [CLI Examples](docs/cli-api-examples.md) - Command-line interface examples
+- [RBAC Guide](docs/rbac.md) - Role-based access control
+
+### Live Documentation (requires running server)
+- [Swagger UI](http://localhost:9000/swagger-ui/) - Interactive API explorer
+- [OpenAPI Spec](http://localhost:9000/api-docs/openapi.json) - OpenAPI 3.0 specification
+
 ## Getting Started
 
-*coming soon*
+```bash
+# Clone the repository
+git clone https://github.com/raworc/raworc.git
+cd raworc
 
-## Installation
+# Build and run
+cargo build --release
+./target/release/raworc start --port 9000
 
-*coming soon*
+# In another terminal, authenticate
+./target/release/raworc auth
+```
 
-## Usage
-
-*coming soon*
+See the [Quick Start Guide](docs/quickstart.md) for detailed instructions.
 
 ## Scope
 
@@ -94,7 +113,7 @@ Raworc is intended to provide session-based containerized work orchestration for
 - Persistent volume management for session state
 - Session remixing and continuation capabilities
 - Kubernetes-native deployment and scaling
-- GraphQL API for flexible data access
+- REST API with comprehensive OpenAPI documentation
 
 ### Out of Scope
 
