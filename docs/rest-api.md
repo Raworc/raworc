@@ -16,7 +16,7 @@ When the server is running, you can access:
 
 ## Authentication
 
-All endpoints except `/health`, `/version`, and `/auth/login` require authentication via Bearer token.
+All endpoints except `/health`, `/version`, and `/auth/internal` require authentication via Bearer token.
 
 Include the token in the Authorization header:
 ```
@@ -45,7 +45,7 @@ Get API version information.
 
 ### Authentication
 
-#### POST /auth/login
+#### POST /auth/internal
 Authenticate a service account and receive a JWT token.
 
 **Request**:

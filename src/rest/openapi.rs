@@ -114,7 +114,7 @@ pub async fn version() {}
 // Auth endpoints
 #[utoipa::path(
     post,
-    path = "/api/v1/auth/login",
+    path = "/api/v1/auth/internal",
     tag = "Auth",
     request_body = LoginRequest,
     responses(
