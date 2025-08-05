@@ -82,39 +82,108 @@ Flexible agent deployment per session:
 ### Creating Sessions
 
 ```bash
-# Via API (future)
+# Via REST API
 POST /api/v0/sessions
 {
   "name": "analysis-session",
-  "agents": ["data-analyzer", "report-writer"],
-  "prompt": "Analyze Q4 sales data",
-  "ttl": 3600
+  "starting_prompt": "Analyze Q4 sales data",
+  "agent_ids": ["uuid-of-data-analyzer", "uuid-of-report-writer"],
+  "waiting_timeout_seconds": 300,
+  "metadata": {
+    "project": "Q4-analysis",
+    "priority": "high"
+  }
 }
 ```
 
-### Session States
+Response:
+```json
+{
+  "id": "session-uuid",
+  "name": "analysis-session",
+  "starting_prompt": "Analyze Q4 sales data",
+  "lifecycle_state": "NOT_STARTED",
+  "waiting_timeout_seconds": 300,
+  "created_by": "username",
+  "agents": [
+    {
+      "id": "agent-uuid",
+      "name": "data-analyzer",
+      "model": "gpt-4"
+    }
+  ],
+  "created_at": "2025-01-20T10:00:00Z"
+}
+```
 
-Sessions progress through defined states:
+### Session Lifecycle States
 
-1. **Pending**: Awaiting resource allocation
-2. **Initializing**: Container starting, agents loading
-3. **Running**: Active and processing work
-4. **Pausing**: Saving state before suspension
-5. **Paused**: Suspended but state preserved
-6. **Terminating**: Cleanup in progress
-7. **Terminated**: Completed, PV retained
+Sessions progress through a defined state machine with the following states:
 
-### Session Remixing
+1. **NOT_STARTED**: Initial state when session is created
+2. **STARTED**: Session has been started and is ready for work
+3. **BUSY**: Session is actively processing work
+4. **WAITING**: Session is idle, waiting for new work
+5. **TERMINATED**: Session has ended (manually or due to timeout)
 
-Building on previous work:
+#### Valid State Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> NOT_STARTED
+    NOT_STARTED --> STARTED
+    NOT_STARTED --> TERMINATED
+    STARTED --> BUSY
+    STARTED --> WAITING
+    STARTED --> TERMINATED
+    BUSY --> WAITING
+    BUSY --> TERMINATED
+    WAITING --> BUSY
+    WAITING --> TERMINATED
+    TERMINATED --> [*]
+```
+
+- Sessions can only transition to **TERMINATED** from any state
+- Once **TERMINATED**, a session cannot be restarted
+- The **BUSY** and **WAITING** states can transition back and forth
+
+### Session Features
+
+#### Soft Delete
+Sessions are never hard deleted from the database. Instead, they are marked with a `deleted_at` timestamp, allowing for:
+- Audit trail preservation
+- Recovery if needed
+- Historical analysis
+
+#### Session Updates
+You can update certain session properties while it's running:
+```bash
+PUT /api/v0/sessions/{id}
+{
+  "name": "Updated session name",
+  "waiting_timeout_seconds": 600,
+  "metadata": {
+    "updated": true,
+    "tags": ["important", "production"]
+  }
+}
+```
+
+#### Session Remixing
+
+Sessions can be "remixed" to create new sessions that inherit configuration from a parent session:
 
 ```bash
-# Create new session from previous (future)
-POST /api/v0/sessions
+# Create new session from previous
+POST /api/v0/sessions/{parent-id}/remix
 {
   "name": "analysis-continued",
-  "remix_from": "session-abc-123",
-  "agents": ["data-analyzer", "visualization-agent"]
+  "starting_prompt": "Continue the analysis with visualizations",
+  "agent_ids": ["uuid-of-visualization-agent"],
+  "waiting_timeout_seconds": 600,
+  "metadata": {
+    "phase": "visualization"
+  }
 }
 ```
 
