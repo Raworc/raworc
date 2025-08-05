@@ -615,6 +615,13 @@ pub async fn initialize_app_state(
             .await?,
     );
 
+    // Run migrations
+    info!("Running database migrations...");
+    sqlx::migrate!("./migrations")
+        .run(&*db)
+        .await?;
+    info!("Database migrations completed successfully");
+
     Ok(AppState {
         db,
         jwt_secret,
