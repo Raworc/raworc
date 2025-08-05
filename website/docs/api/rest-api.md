@@ -84,6 +84,42 @@ Get information about the authenticated user.
 }
 ```
 
+### POST /auth/external
+
+Authenticate using external authentication providers (OAuth2, OIDC, SAML).
+
+**Authentication**: Not required
+
+**Request Body**:
+```json
+{
+  "provider": "oidc",
+  "token": "external-id-token",
+  "provider_config": {
+    "issuer": "https://accounts.google.com",
+    "client_id": "your-client-id"
+  }
+}
+```
+
+**Response**: `200 OK`
+```json
+{
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "token_type": "Bearer",
+  "expires_at": "2025-01-02T12:00:00Z",
+  "service_account": {
+    "user": "external_user@example.com",
+    "namespace": "default",
+    "provider": "oidc"
+  }
+}
+```
+
+**Errors**:
+- `401 Unauthorized` - Invalid external token or provider configuration
+- `400 Bad Request` - Unsupported provider or missing required fields
+
 ## Service Accounts
 
 ### GET /service-accounts

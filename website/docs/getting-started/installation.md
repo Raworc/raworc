@@ -125,67 +125,6 @@ Docker provides an isolated environment and simplifies deployment.
    docker run -p 9000:9000 raworc
    ```
 
-### Kubernetes Deployment
-
-For production deployments on Kubernetes:
-
-1. **Create namespace**
-   ```bash
-   kubectl create namespace raworc
-   ```
-
-2. **Apply manifests**
-   ```yaml
-   # raworc-deployment.yaml
-   apiVersion: apps/v1
-   kind: Deployment
-   metadata:
-     name: raworc
-     namespace: raworc
-   spec:
-     replicas: 3
-     selector:
-       matchLabels:
-         app: raworc
-     template:
-       metadata:
-         labels:
-           app: raworc
-       spec:
-         containers:
-         - name: raworc
-           image: raworc:latest
-           ports:
-           - containerPort: 9000
-           env:
-           - name: DATABASE_URL
-             valueFrom:
-               secretKeyRef:
-                 name: raworc-secrets
-                 key: database-url
-           - name: JWT_SECRET
-             valueFrom:
-               secretKeyRef:
-                 name: raworc-secrets
-                 key: jwt-secret
-   ```
-
-3. **Create service**
-   ```yaml
-   # raworc-service.yaml
-   apiVersion: v1
-   kind: Service
-   metadata:
-     name: raworc
-     namespace: raworc
-   spec:
-     selector:
-       app: raworc
-     ports:
-     - port: 9000
-       targetPort: 9000
-     type: LoadBalancer
-   ```
 
 ## Database Setup
 
@@ -228,6 +167,7 @@ docker run -d \
    export DATABASE_URL="postgresql://raworc:changeme@localhost:5432/raworc"
    psql $DATABASE_URL < migrations/001_create_rbac_tables.sql
    psql $DATABASE_URL < migrations/002_create_agents_table.sql
+   psql $DATABASE_URL < migrations/003_create_sessions_table.sql
    ```
 
 ## Platform-Specific Notes
@@ -283,6 +223,12 @@ After installation, verify everything is working:
    ```bash
    raworc auth
    ```
+   
+   **Important Security Note**: On first run, Raworc creates a default admin account with credentials:
+   - Username: `admin`
+   - Password: `admin`
+   
+   ⚠️ **Change these credentials immediately after first login for security!**
 
 ## Troubleshooting
 
