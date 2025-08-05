@@ -6,7 +6,7 @@ use utoipa::{
 use crate::rest::{
     auth::{LoginRequest, LoginResponse, ExternalLoginRequest},
     handlers::{
-        service_accounts::{CreateServiceAccountRequest, ServiceAccountResponse},
+        service_accounts::{CreateServiceAccountRequest, ServiceAccountResponse, UpdatePasswordRequest, UpdateServiceAccountRequest},
         roles::{CreateRoleRequest, RoleResponse, RuleRequest, RuleResponse},
         role_bindings::{CreateRoleBindingRequest, RoleBindingResponse, RoleRefRequest, SubjectRequest},
         agents::AgentResponse,
@@ -28,7 +28,9 @@ use crate::rbac::SubjectType;
         crate::rest::openapi::list_service_accounts,
         crate::rest::openapi::get_service_account,
         crate::rest::openapi::create_service_account,
+        crate::rest::openapi::update_service_account,
         crate::rest::openapi::delete_service_account,
+        crate::rest::openapi::update_service_account_password,
         crate::rest::openapi::list_roles,
         crate::rest::openapi::get_role,
         crate::rest::openapi::create_role,
@@ -57,6 +59,8 @@ use crate::rbac::SubjectType;
             ExternalLoginRequest,
             CreateServiceAccountRequest,
             ServiceAccountResponse,
+            UpdatePasswordRequest,
+            UpdateServiceAccountRequest,
             CreateRoleRequest,
             RoleResponse,
             RuleRequest,
@@ -241,6 +245,28 @@ pub async fn get_service_account() {}
 pub async fn create_service_account() {}
 
 #[utoipa::path(
+    put,
+    path = "/api/v0/service-accounts/{id}",
+    tag = "Service Accounts",
+    request_body = UpdateServiceAccountRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Service account ID or username"),
+    ),
+    responses(
+        (status = 200, description = "Service account updated", body = ServiceAccountResponse),
+        (status = 400, description = "Invalid request", body = ErrorResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Service account not found", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn update_service_account() {}
+
+#[utoipa::path(
     delete,
     path = "/api/v0/service-accounts/{id}",
     tag = "Service Accounts",
@@ -259,6 +285,28 @@ pub async fn create_service_account() {}
 )]
 #[allow(dead_code)]
 pub async fn delete_service_account() {}
+
+#[utoipa::path(
+    put,
+    path = "/api/v0/service-accounts/{id}/password",
+    tag = "Service Accounts",
+    request_body = UpdatePasswordRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Service account ID or username"),
+    ),
+    responses(
+        (status = 204, description = "Password updated successfully"),
+        (status = 400, description = "Invalid request", body = ErrorResponse),
+        (status = 401, description = "Current password is incorrect", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Service account not found", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn update_service_account_password() {}
 
 // Role endpoints
 #[utoipa::path(

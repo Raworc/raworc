@@ -19,7 +19,9 @@ pub struct ServiceAccount {
     pub pass_hash: String,
     pub description: Option<String>,
     pub created_at: String,
+    pub updated_at: String,
     pub active: bool,
+    pub last_login_at: Option<String>,
 }
 
 

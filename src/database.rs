@@ -23,7 +23,7 @@ impl AppState {
         
         query(
             r#"
-            INSERT INTO service_accounts (id, name, namespace, password_hash, email)
+            INSERT INTO service_accounts (id, name, namespace, password_hash, description)
             VALUES ($1, $2, $3, $4, $5)
             "#
         )
@@ -41,8 +41,10 @@ impl AppState {
             namespace,
             pass_hash: pass_hash.to_string(),
             description,
-            created_at,
+            created_at: created_at.clone(),
+            updated_at: created_at,
             active: true,
+            last_login_at: None,
         })
     }
 
@@ -55,7 +57,7 @@ impl AppState {
         
         let row = query(
             r#"
-            SELECT id, name, namespace, password_hash, email, created_at
+            SELECT id, name, namespace, password_hash, description, created_at, updated_at, active, last_login_at
             FROM service_accounts
             WHERE name = $1 AND namespace = $2
             "#
@@ -73,16 +75,19 @@ impl AppState {
                 if ns == "default" { None } else { Some(ns) }
             },
             pass_hash: r.get("password_hash"),
-            description: r.get("email"),
+            description: r.get("description"),
             created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
-            active: true,
+            updated_at: r.get::<chrono::DateTime<chrono::Utc>, _>("updated_at").to_rfc3339(),
+            active: r.get("active"),
+            last_login_at: r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("last_login_at")
+                .map(|dt| dt.to_rfc3339()),
         }))
     }
 
     pub async fn get_all_service_accounts(&self) -> Result<Vec<ServiceAccount>, DatabaseError> {
         let rows = query(
             r#"
-            SELECT id, name, namespace, password_hash, email, created_at
+            SELECT id, name, namespace, password_hash, description, created_at, updated_at, active, last_login_at
             FROM service_accounts
             ORDER BY created_at DESC
             "#
@@ -98,9 +103,12 @@ impl AppState {
                 if ns == "default" { None } else { Some(ns) }
             },
             pass_hash: r.get("password_hash"),
-            description: r.get("email"),
+            description: r.get("description"),
             created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
-            active: true,
+            updated_at: r.get::<chrono::DateTime<chrono::Utc>, _>("updated_at").to_rfc3339(),
+            active: r.get("active"),
+            last_login_at: r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("last_login_at")
+                .map(|dt| dt.to_rfc3339()),
         }).collect())
     }
 
@@ -135,6 +143,181 @@ impl AppState {
             "#
         )
         .bind(uuid)
+        .execute(&*self.db)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn update_service_account_password(
+        &self,
+        user: &str,
+        namespace: Option<&str>,
+        new_pass_hash: &str,
+    ) -> Result<bool, DatabaseError> {
+        let namespace_value = namespace.unwrap_or("default");
+        
+        let result = query(
+            r#"
+            UPDATE service_accounts
+            SET password_hash = $1, updated_at = NOW()
+            WHERE name = $2 AND namespace = $3
+            "#
+        )
+        .bind(new_pass_hash)
+        .bind(user)
+        .bind(namespace_value)
+        .execute(&*self.db)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn update_service_account_password_by_id(
+        &self,
+        id: &str,
+        new_pass_hash: &str,
+    ) -> Result<bool, DatabaseError> {
+        let uuid = Uuid::parse_str(id)?;
+        
+        let result = query(
+            r#"
+            UPDATE service_accounts
+            SET password_hash = $1, updated_at = NOW()
+            WHERE id = $2
+            "#
+        )
+        .bind(new_pass_hash)
+        .bind(uuid)
+        .execute(&*self.db)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn update_service_account(
+        &self,
+        id: &str,
+        namespace: Option<String>,
+        description: Option<String>,
+        active: Option<bool>,
+    ) -> Result<bool, DatabaseError> {
+        let uuid = Uuid::parse_str(id)?;
+        
+        // Build dynamic update query based on provided fields
+        let result = if let (Some(ns), Some(desc), Some(act)) = (&namespace, &description, &active) {
+            query(
+                r#"
+                UPDATE service_accounts
+                SET namespace = $1, description = $2, active = $3, updated_at = NOW()
+                WHERE id = $4
+                "#
+            )
+            .bind(ns)
+            .bind(desc)
+            .bind(act)
+            .bind(uuid)
+            .execute(&*self.db)
+            .await?
+        } else if let (Some(ns), Some(desc)) = (&namespace, &description) {
+            query(
+                r#"
+                UPDATE service_accounts
+                SET namespace = $1, description = $2, updated_at = NOW()
+                WHERE id = $3
+                "#
+            )
+            .bind(ns)
+            .bind(desc)
+            .bind(uuid)
+            .execute(&*self.db)
+            .await?
+        } else if let (Some(ns), Some(act)) = (&namespace, &active) {
+            query(
+                r#"
+                UPDATE service_accounts
+                SET namespace = $1, active = $2, updated_at = NOW()
+                WHERE id = $3
+                "#
+            )
+            .bind(ns)
+            .bind(act)
+            .bind(uuid)
+            .execute(&*self.db)
+            .await?
+        } else if let (Some(desc), Some(act)) = (&description, &active) {
+            query(
+                r#"
+                UPDATE service_accounts
+                SET description = $1, active = $2, updated_at = NOW()
+                WHERE id = $3
+                "#
+            )
+            .bind(desc)
+            .bind(act)
+            .bind(uuid)
+            .execute(&*self.db)
+            .await?
+        } else if let Some(ns) = namespace {
+            query(
+                r#"
+                UPDATE service_accounts
+                SET namespace = $1, updated_at = NOW()
+                WHERE id = $2
+                "#
+            )
+            .bind(ns)
+            .bind(uuid)
+            .execute(&*self.db)
+            .await?
+        } else if let Some(desc) = description {
+            query(
+                r#"
+                UPDATE service_accounts
+                SET description = $1, updated_at = NOW()
+                WHERE id = $2
+                "#
+            )
+            .bind(desc)
+            .bind(uuid)
+            .execute(&*self.db)
+            .await?
+        } else if let Some(act) = active {
+            query(
+                r#"
+                UPDATE service_accounts
+                SET active = $1, updated_at = NOW()
+                WHERE id = $2
+                "#
+            )
+            .bind(act)
+            .bind(uuid)
+            .execute(&*self.db)
+            .await?
+        } else {
+            // No fields to update
+            return Ok(false);
+        };
+        
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn update_last_login(
+        &self,
+        user: &str,
+        namespace: Option<&str>,
+    ) -> Result<bool, DatabaseError> {
+        let namespace_value = namespace.unwrap_or("default");
+        
+        let result = query(
+            r#"
+            UPDATE service_accounts
+            SET last_login_at = NOW()
+            WHERE name = $1 AND namespace = $2
+            "#
+        )
+        .bind(user)
+        .bind(namespace_value)
         .execute(&*self.db)
         .await?;
 

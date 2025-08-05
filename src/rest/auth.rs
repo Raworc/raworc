@@ -54,6 +54,9 @@ pub async fn login(
     .await?
     .ok_or(ApiError::Unauthorized)?;
 
+    // Update last login timestamp
+    let _ = state.update_last_login(&req.user, req.namespace.as_deref()).await;
+
     let token_response = create_service_account_jwt(&service_account, &state.jwt_secret, 24)?;
     
     Ok(Json(token_response.into()))
