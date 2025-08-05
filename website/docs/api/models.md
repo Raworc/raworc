@@ -265,6 +265,61 @@ enum SubjectType {
 }
 ```
 
+## Service Account Models
+
+### ServiceAccountResponse
+
+Response format for service account information.
+
+```typescript
+interface ServiceAccountResponse {
+  id: string;                    // UUID
+  user: string;                  // Username (unique within namespace)
+  namespace?: string;            // Optional namespace for multi-tenancy
+  description?: string;          // Optional description
+  active: boolean;               // Whether account is active
+  created_at: string;           // ISO 8601 timestamp
+  updated_at: string;           // ISO 8601 timestamp
+  last_login_at?: string;       // ISO 8601 timestamp, null if never logged in
+}
+```
+
+### CreateServiceAccountRequest
+
+Request body for creating a service account.
+
+```typescript
+interface CreateServiceAccountRequest {
+  user: string;                  // Required, unique within namespace
+  pass: string;                  // Required, will be hashed
+  namespace?: string;            // Optional, defaults to "default"
+  description?: string;          // Optional description
+}
+```
+
+### UpdateServiceAccountRequest
+
+Request body for updating a service account.
+
+```typescript
+interface UpdateServiceAccountRequest {
+  namespace?: string;            // Optional, change namespace
+  description?: string;          // Optional, update description
+  active?: boolean;             // Optional, enable/disable account
+}
+```
+
+### UpdatePasswordRequest
+
+Request body for updating a service account password.
+
+```typescript
+interface UpdatePasswordRequest {
+  current_password: string;      // Required for verification
+  new_password: string;          // New password to set
+}
+```
+
 ## Common Types
 
 ### Error Response

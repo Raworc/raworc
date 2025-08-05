@@ -138,7 +138,9 @@ List all service accounts.
     "namespace": null,
     "description": "Administrator account",
     "active": true,
-    "created_at": "2025-01-01T00:00:00Z"
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-01-02T10:30:00Z",
+    "last_login_at": "2025-01-02T09:15:00Z"
   }
 ]
 ```
@@ -168,7 +170,9 @@ Create a new service account.
   "namespace": "production",
   "description": "Deployment automation bot",
   "active": true,
-  "created_at": "2025-01-01T00:00:00Z"
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-01T00:00:00Z",
+  "last_login_at": null
 }
 ```
 
@@ -194,12 +198,51 @@ Get a specific service account by ID or username.
   "namespace": null,
   "description": "Administrator account",
   "active": true,
-  "created_at": "2025-01-01T00:00:00Z"
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-02T10:30:00Z",
+  "last_login_at": "2025-01-02T09:15:00Z"
 }
 ```
 
 **Errors**:
 - `404 Not Found` - Account not found
+
+### PUT /service-accounts/{id}
+
+Update a service account's fields.
+
+**Authentication**: Required  
+**Permissions**: `update` on `service-accounts`
+
+**Parameters**:
+- `id` (path) - Service account ID
+
+**Request Body** (all fields optional):
+```json
+{
+  "namespace": "new-namespace",
+  "description": "Updated description",
+  "active": false
+}
+```
+
+**Response**: `200 OK`
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "user": "admin",
+  "namespace": "new-namespace",
+  "description": "Updated description",
+  "active": false,
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-02T12:00:00Z",
+  "last_login_at": "2025-01-02T09:15:00Z"
+}
+```
+
+**Errors**:
+- `404 Not Found` - Account not found
+- `403 Forbidden` - Insufficient permissions
 
 ### DELETE /service-accounts/{id}
 

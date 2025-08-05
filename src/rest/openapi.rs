@@ -6,7 +6,7 @@ use utoipa::{
 use crate::rest::{
     auth::{LoginRequest, LoginResponse, ExternalLoginRequest},
     handlers::{
-        service_accounts::{CreateServiceAccountRequest, ServiceAccountResponse, UpdatePasswordRequest},
+        service_accounts::{CreateServiceAccountRequest, ServiceAccountResponse, UpdatePasswordRequest, UpdateServiceAccountRequest},
         roles::{CreateRoleRequest, RoleResponse, RuleRequest, RuleResponse},
         role_bindings::{CreateRoleBindingRequest, RoleBindingResponse, RoleRefRequest, SubjectRequest},
         agents::AgentResponse,
@@ -28,6 +28,7 @@ use crate::rbac::SubjectType;
         crate::rest::openapi::list_service_accounts,
         crate::rest::openapi::get_service_account,
         crate::rest::openapi::create_service_account,
+        crate::rest::openapi::update_service_account,
         crate::rest::openapi::delete_service_account,
         crate::rest::openapi::update_service_account_password,
         crate::rest::openapi::list_roles,
@@ -59,6 +60,7 @@ use crate::rbac::SubjectType;
             CreateServiceAccountRequest,
             ServiceAccountResponse,
             UpdatePasswordRequest,
+            UpdateServiceAccountRequest,
             CreateRoleRequest,
             RoleResponse,
             RuleRequest,
@@ -241,6 +243,28 @@ pub async fn get_service_account() {}
 )]
 #[allow(dead_code)]
 pub async fn create_service_account() {}
+
+#[utoipa::path(
+    put,
+    path = "/api/v0/service-accounts/{id}",
+    tag = "Service Accounts",
+    request_body = UpdateServiceAccountRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    params(
+        ("id" = String, Path, description = "Service account ID or username"),
+    ),
+    responses(
+        (status = 200, description = "Service account updated", body = ServiceAccountResponse),
+        (status = 400, description = "Invalid request", body = ErrorResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 404, description = "Service account not found", body = ErrorResponse),
+    ),
+)]
+#[allow(dead_code)]
+pub async fn update_service_account() {}
 
 #[utoipa::path(
     delete,
