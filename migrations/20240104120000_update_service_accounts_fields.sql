@@ -1,7 +1,4 @@
--- Update service_accounts table to match the struct fields
-
--- Rename email column to description since that's what it's being used for
-ALTER TABLE service_accounts RENAME COLUMN email TO description;
+-- Update service_accounts table to add new fields
 
 -- Add active column with default true
 ALTER TABLE service_accounts ADD COLUMN active BOOLEAN DEFAULT true;

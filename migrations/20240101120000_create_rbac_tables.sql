@@ -6,7 +6,7 @@ CREATE TABLE service_accounts (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     namespace TEXT NOT NULL,
-    email TEXT UNIQUE,
+    description TEXT,
     password_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -56,7 +56,7 @@ CREATE TRIGGER update_role_bindings_updated_at BEFORE UPDATE ON role_bindings
 
 -- Create indexes for performance
 CREATE INDEX idx_service_accounts_namespace ON service_accounts(namespace);
-CREATE INDEX idx_service_accounts_email ON service_accounts(email);
+CREATE INDEX idx_service_accounts_description ON service_accounts(description);
 CREATE INDEX idx_roles_namespace ON roles(namespace);
 CREATE INDEX idx_role_bindings_namespace ON role_bindings(namespace);
 CREATE INDEX idx_role_bindings_subjects ON role_bindings USING GIN (subjects);
