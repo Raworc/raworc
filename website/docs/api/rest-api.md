@@ -216,6 +216,31 @@ Delete a service account by ID or username.
 **Errors**:
 - `404 Not Found` - Account not found
 
+### PUT /service-accounts/{id}/password
+
+Update a service account's password.
+
+**Authentication**: Required  
+**Permissions**: Users can change their own password. Admins can change any password.
+
+**Parameters**:
+- `id` (path) - Service account ID or username
+
+**Request Body**:
+```json
+{
+  "current_password": "oldPassword123",
+  "new_password": "newSecurePassword456"
+}
+```
+
+**Response**: `204 No Content`
+
+**Errors**:
+- `401 Unauthorized` - Current password is incorrect
+- `404 Not Found` - Service account not found
+- `403 Forbidden` - Cannot change another user's password without admin rights
+
 ## Roles
 
 ### GET /roles

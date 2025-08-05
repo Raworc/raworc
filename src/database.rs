@@ -141,6 +141,52 @@ impl AppState {
         Ok(result.rows_affected() > 0)
     }
 
+    pub async fn update_service_account_password(
+        &self,
+        user: &str,
+        namespace: Option<&str>,
+        new_pass_hash: &str,
+    ) -> Result<bool, DatabaseError> {
+        let namespace_value = namespace.unwrap_or("default");
+        
+        let result = query(
+            r#"
+            UPDATE service_accounts
+            SET password_hash = $1, updated_at = NOW()
+            WHERE name = $2 AND namespace = $3
+            "#
+        )
+        .bind(new_pass_hash)
+        .bind(user)
+        .bind(namespace_value)
+        .execute(&*self.db)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn update_service_account_password_by_id(
+        &self,
+        id: &str,
+        new_pass_hash: &str,
+    ) -> Result<bool, DatabaseError> {
+        let uuid = Uuid::parse_str(id)?;
+        
+        let result = query(
+            r#"
+            UPDATE service_accounts
+            SET password_hash = $1, updated_at = NOW()
+            WHERE id = $2
+            "#
+        )
+        .bind(new_pass_hash)
+        .bind(uuid)
+        .execute(&*self.db)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
     // Role operations
     pub async fn create_role(&self, role: &Role) -> Result<Role, DatabaseError> {
         let id = Uuid::new_v4();
