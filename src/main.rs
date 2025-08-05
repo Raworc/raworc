@@ -8,70 +8,14 @@ mod rest;
 use anyhow::Result;
 #[cfg(unix)]
 use daemonize::Daemonize;
-use rustyline::completion::{Completer, Pair};
-use rustyline::highlight::Highlighter;
-use rustyline::hint::Hinter;
-use rustyline::validate::Validator;
-use rustyline::{Context, Editor, Helper, Result as RustylineResult};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use sqlx::Row;
 use std::env;
 use std::fs;
-use std::io::{self, Write};
-use std::path::PathBuf;
 use tracing::info;
 #[cfg(unix)]
 use tracing::error;
 
-#[derive(Helper)]
-struct RaworcHelper;
-
-impl Completer for RaworcHelper {
-    type Candidate = Pair;
-
-    fn complete(
-        &self,
-        line: &str,
-        _pos: usize,
-        _ctx: &Context<'_>,
-    ) -> RustylineResult<(usize, Vec<Pair>)> {
-        let commands = ["/help", "/status", "/quit", "/q", "/api"];
-
-        if line.is_empty() || line.starts_with('/') {
-            let matches: Vec<Pair> = commands
-                .iter()
-                .filter(|cmd| cmd.starts_with(line))
-                .map(|cmd| Pair {
-                    display: cmd.to_string(),
-                    replacement: cmd.to_string(),
-                })
-                .collect();
-
-            Ok((0, matches))
-        } else {
-            // For non-command input, check if they're typing common commands
-            let simple_commands = ["help", "status", "quit", "q", "exit"];
-            let matches: Vec<Pair> = simple_commands
-                .iter()
-                .filter(|cmd| cmd.starts_with(line))
-                .map(|cmd| Pair {
-                    display: cmd.to_string(),
-                    replacement: cmd.to_string(),
-                })
-                .collect();
-
-            Ok((0, matches))
-        }
-    }
-}
-
-impl Hinter for RaworcHelper {
-    type Hint = String;
-}
-
-impl Highlighter for RaworcHelper {}
-
-impl Validator for RaworcHelper {}
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -119,12 +63,15 @@ async fn main_async() -> Result<()> {
         "status" => {
             show_auth_status().await?;
         }
+        "migrate" => {
+            run_migrations(&args).await?;
+        }
         "help" | "--help" | "-h" => {
             print_help();
         }
         _ => {
             println!("Unknown command: '{}'", args[1]);
-            println!("Available commands are: start, stop, connect, auth, help");
+            println!("Available commands are: start, stop, connect, auth, migrate, help");
             println!();
             print_help();
         }
@@ -248,9 +195,8 @@ fn start_server_daemon() -> Result<()> {
             });
         }
         Err(e) => {
-            println!("✗ Failed to daemonize: {e}");
-            println!("Check log files in: {log_dir}");
-            return Err(anyhow::anyhow!("Daemon startup failed: {}", e));
+            eprintln!("✗ Failed to start daemon: {e}");
+            return Err(anyhow::anyhow!("Failed to start daemon: {e}"));
         }
     }
 
@@ -258,504 +204,69 @@ fn start_server_daemon() -> Result<()> {
 }
 
 async fn stop_server() -> Result<()> {
-    use std::fs;
-    use std::process;
-
     let pid_file = "/tmp/raworc.pid";
 
-    match fs::read_to_string(pid_file) {
-        Ok(pid_str) => {
-            match pid_str.trim().parse::<u32>() {
-                Ok(pid) => {
-                    println!("Stopping Raworc server (PID: {pid})...");
-
-                    // Try to kill the process
-                    match process::Command::new("kill").arg(pid.to_string()).output() {
-                        Ok(output) => {
-                            if output.status.success() {
-                                println!("Server stopped successfully.");
-                                // Remove PID file
-                                let _ = fs::remove_file(pid_file);
-                            } else {
-                                eprintln!(
-                                    "Failed to stop server: {stderr}",
-                                    stderr = String::from_utf8_lossy(&output.stderr)
-                                );
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to execute kill command: {e}");
-                        }
-                    }
-                }
-                Err(_) => {
-                    eprintln!("Invalid PID in {pid_file}");
-                    let _ = fs::remove_file(pid_file);
-                }
-            }
-        }
-        Err(_) => {
-            println!("No running Raworc server found (no PID file).");
-        }
+    // Check if PID file exists
+    if !std::path::Path::new(pid_file).exists() {
+        println!("✗ Raworc server is not running");
+        println!("   PID file not found at: {pid_file}");
+        return Ok(());
     }
 
-    Ok(())
-}
+    // Read PID from file
+    let pid_str = fs::read_to_string(pid_file)?;
+    let pid = pid_str
+        .trim()
+        .parse::<u32>()
+        .map_err(|e| anyhow::anyhow!("Invalid PID in file: {e}"))?;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct AuthConfig {
-    server: String,
-    token: String,
-}
-
-// Token and config management
-fn get_raworc_dir() -> Result<PathBuf> {
-    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
-    Ok(home.join(".raworc"))
-}
-
-fn get_config_file() -> Result<PathBuf> {
-    let raworc_dir = get_raworc_dir()?;
-    Ok(raworc_dir.join("auth.yaml"))
-}
-
-async fn store_auth_config(server_url: &str, token: &str) -> Result<()> {
-    let raworc_dir = get_raworc_dir()?;
-    fs::create_dir_all(&raworc_dir)?;
-
-    let config = AuthConfig {
-        server: server_url.to_string(),
-        token: token.to_string(),
-    };
-
-    let config_file = get_config_file()?;
-    let yaml_content = serde_yaml::to_string(&config)?;
-    fs::write(config_file, yaml_content)?;
-
-    Ok(())
-}
-
-fn load_auth_config() -> Result<Option<AuthConfig>> {
-    let config_file = get_config_file()?;
-    match fs::read_to_string(config_file) {
-        Ok(content) => match serde_yaml::from_str::<AuthConfig>(&content) {
-            Ok(config) => Ok(Some(config)),
-            Err(_) => Ok(None),
-        },
-        Err(_) => Ok(None),
-    }
-}
-
-async fn validate_token(server_url: &str, token: &str) -> Result<Option<String>> {
-    let client = reqwest::Client::new();
-
-    match client
-        .get(format!("{server_url}/api/v0/auth/me"))
-        .header("Authorization", format!("Bearer {token}"))
-        .send()
-        .await
+    // Try to kill the process
+    match std::process::Command::new("kill")
+        .arg(pid.to_string())
+        .output()
     {
-        Ok(response) => {
-            if response.status().is_success() {
-                if let Ok(result) = response.json::<Value>().await {
-                    if let Some(user) = result.get("user").and_then(|u| u.as_str()) {
-                        return Ok(Some(user.to_string()));
-                    }
-                }
-            }
-            Ok(None)
-        }
-        Err(_) => Ok(None),
-    }
-}
-
-async fn auth_interactive() -> Result<()> {
-    println!("Raworc Authentication");
-    println!();
-    println!("Choose authentication method:");
-    println!("1. Login with service account");
-    println!("2. Store JWT token directly");
-    println!();
-    print!("Enter choice (1 or 2): ");
-    io::stdout().flush()?;
-
-    let mut choice = String::new();
-    io::stdin().read_line(&mut choice)?;
-    let choice = choice.trim();
-
-    match choice {
-        "1" => auth_login().await?,
-        "2" => auth_token_interactive().await?,
-        _ => {
-            println!("Invalid choice. Please enter 1 or 2.");
-            return Ok(());
-        }
-    }
-
-    Ok(())
-}
-
-async fn auth_login() -> Result<()> {
-    println!("Service Account Login");
-    print!("Server URL: ");
-    io::stdout().flush()?;
-    let mut server_url = String::new();
-    io::stdin().read_line(&mut server_url)?;
-    let server_url = server_url.trim();
-
-    print!("Username: ");
-    io::stdout().flush()?;
-    let mut username = String::new();
-    io::stdin().read_line(&mut username)?;
-    let username = username.trim();
-
-    print!("Password: ");
-    io::stdout().flush()?;
-    let password = rpassword::read_password()?;
-
-    println!("Authenticating...");
-
-    let client = reqwest::Client::new();
-    let login_request = json!({
-        "user": username,
-        "pass": password
-    });
-
-    let response = client
-        .post(format!("{server_url}/api/v0/auth/internal"))
-        .header("Content-Type", "application/json")
-        .json(&login_request)
-        .send()
-        .await?;
-
-    if response.status().is_success() {
-        let result: Value = response.json().await?;
-        if let Some(token) = result.get("token").and_then(|t| t.as_str()) {
-            store_auth_config(server_url, token).await?;
-            if let Some(user) = validate_token(server_url, token).await? {
-                println!();
-                println!("✓ Authentication successful!");
-                println!("   User: {user}");
-                println!("   Server: {server_url}");
-                println!();
-                println!("You can now use 'raworc' to connect to this server.");
-            }
-            return Ok(());
-        } else {
-            println!("✗ Authentication failed: Invalid response");
-        }
-    } else {
-        println!(
-            "✗ Authentication failed: Server returned {status}",
-            status = response.status()
-        );
-    }
-    Ok(())
-}
-
-async fn auth_token_interactive() -> Result<()> {
-    print!("Server URL: ");
-    io::stdout().flush()?;
-    let mut server_url = String::new();
-    io::stdin().read_line(&mut server_url)?;
-    let server_url = server_url.trim();
-
-    print!("JWT Token: ");
-    io::stdout().flush()?;
-    let token = rpassword::read_password()?;
-
-    println!("Validating token...");
-    if let Some(user) = validate_token(server_url, &token).await? {
-        store_auth_config(server_url, &token).await?;
-        println!();
-        println!("✓ Authentication successful!");
-        println!("   User: {user}");
-        println!("   Server: {server_url}");
-        println!();
-        println!("You can now use 'raworc' to connect to this server.");
-    } else {
-        println!("✗ Invalid token or server unreachable");
-    }
-    Ok(())
-}
-
-async fn get_auth_status() -> Result<String> {
-    // Check if auth config exists
-    match load_auth_config()? {
-        Some(config) => {
-            // Check server reachability using REST endpoint
-            let client = reqwest::Client::new();
-            let server_reachable = match client
-                .get(format!("{}/api/v0/version", config.server))
-                .send()
-                .await
-            {
-                Ok(response) => response.status().is_success(),
-                Err(_) => false,
-            };
-
-            if server_reachable {
-                // Server is reachable, check if token is valid
-                if let Some(user) = validate_token(&config.server, &config.token).await? {
-                    Ok(format!(
-                        "  ✓ Logged in as: {user} ({server})",
-                        server = config.server
-                    ))
-                } else {
-                    Ok(format!("  ✗ Not valid ({server})", server = config.server))
-                }
+        Ok(output) => {
+            if output.status.success() {
+                println!("✓ Raworc server stopped (PID: {pid})");
+                // Clean up PID file
+                let _ = fs::remove_file(pid_file);
             } else {
-                Ok(format!(
-                    "  ✗ Not reachable ({server})",
-                    server = config.server
-                ))
+                // Process might not exist
+                println!("✗ Failed to stop server: Process not found (PID: {pid})");
+                // Clean up stale PID file
+                let _ = fs::remove_file(pid_file);
             }
         }
-        None => Ok("  ✗ Not authenticated".to_string()),
-    }
-}
-
-async fn show_auth_status() -> Result<()> {
-    let status = get_auth_status().await?;
-    println!("Authentication Status:");
-    println!("{status}");
-
-    if status.contains("Not valid") {
-        println!();
-        println!("Run 'raworc auth' to re-authenticate.");
-    } else if status.contains("Not reachable") {
-        println!();
-        println!(
-            "Check server status or run 'raworc auth' to authenticate with a different server."
-        );
-    } else if status.contains("Not authenticated") {
-        println!();
-        println!("Run 'raworc auth' to authenticate with a server.");
+        Err(e) => {
+            println!("✗ Failed to stop server: {e}");
+            return Err(anyhow::anyhow!("Failed to execute kill command: {e}"));
+        }
     }
 
     Ok(())
 }
 
 async fn connect_to_server() -> Result<()> {
-    print_banner();
-
-    // Show authentication status below banner
-    let status = get_auth_status().await?;
-    println!("{status}");
-
-    // Check if we can connect based on status
-    if status.contains("Not authenticated") {
-        println!();
-        println!("Run 'raworc auth' to authenticate with a server.");
-        return Ok(());
-    }
-
-    if status.contains("Not valid") {
-        println!();
-        println!("Run 'raworc auth' to re-authenticate.");
-        return Ok(());
-    }
-
-    if status.contains("Not reachable") {
-        println!();
-        println!("Cannot connect to server. Please check the server status.");
-        return Ok(());
-    }
-
-    // Get the server URL from auth config
-    let server_url = match load_auth_config()? {
-        Some(config) => config.server,
-        None => {
-            println!();
-            println!("Run 'raworc auth' to authenticate with a server.");
-            return Ok(());
-        }
-    };
-
-    println!();
-
-    // Start interactive loop with auto-completion
-    let helper = RaworcHelper;
-    let mut rl = Editor::new()?;
-    rl.set_helper(Some(helper));
-    println!();
-
-    while let Ok(line) = rl.readline("raworc> ") {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-
-        rl.add_history_entry(line).ok();
-
-        match line {
-            "/quit" | "/q" | "q" | "quit" | "exit" => {
-                break;
-            }
-            "/help" => {
-                show_connect_help();
-                println!();
-            }
-            "/status" => {
-                let status = get_auth_status().await?;
-                println!(" Authentication Status:");
-                println!(" {status}");
-                println!();
-            }
-            line if line.starts_with("/api ") => {
-                let parts = &line[5..]; // Remove "/api "
-                execute_api_request(&server_url, parts).await?;
-                println!();
-            }
-            _ => {
-                println!("Unknown command. Type /help for available commands.");
-                println!();
-            }
-        }
-    }
-
+    println!("Connect command not yet implemented in this version.");
+    println!("Please use the REST API directly.");
     Ok(())
 }
 
-fn show_connect_help() {
-    println!(" Available Commands:");
-    println!();
-    println!("  /api <METHOD> <endpoint> [json]  - Execute REST API request");
-    println!("  /api <endpoint>                  - Execute GET request (shorthand)");
-    println!("  /status                          - Show server status");
-    println!("  /help                            - Show this help");
-    println!("  /quit, /q, q, quit, exit         - Exit interactive mode");
-    println!();
-    println!(" Examples:");
-    println!("  /api version                     - GET /api/v0/version");
-    println!("  /api service-accounts            - GET /api/v0/service-accounts");
-    println!("  /api GET roles                   - GET /api/v0/roles");
-    println!("  /api POST roles {{\"name\":\"test\",\"rules\":[]}}");
-    println!("  /api DELETE roles/test-role");
-    println!("  /api PUT service-accounts/admin {{\"description\":\"Updated\"}}");
-}
-
-async fn execute_api_request(server_url: &str, input: &str) -> Result<()> {
-    // Check authentication using same logic
-    let config = match load_auth_config()? {
-        Some(config) => {
-            if config.server != server_url {
-                println!("✗ Not authenticated for this server. Use 'raworc auth' first.");
-                return Ok(());
-            }
-            config
-        }
-        None => {
-            println!("✗ Authentication required. Use 'raworc auth' first.");
-            return Ok(());
-        }
-    };
-
-    // Parse the command
-    let parts: Vec<&str> = input.split_whitespace().collect();
-    if parts.is_empty() {
-        println!("✗ No endpoint specified");
-        return Ok(());
-    }
-
-    let (method, endpoint, data) = if parts[0].to_uppercase() == "GET"
-        || parts[0].to_uppercase() == "POST"
-        || parts[0].to_uppercase() == "PUT"
-        || parts[0].to_uppercase() == "DELETE"
-    {
-        // Format: METHOD endpoint [data]
-        if parts.len() < 2 {
-            println!("✗ No endpoint specified after method");
-            return Ok(());
-        }
-        let method = parts[0].to_uppercase();
-        let endpoint = parts[1];
-        let data = if parts.len() > 2 {
-            // Join remaining parts as JSON data
-            Some(parts[2..].join(" "))
-        } else {
-            None
-        };
-        (method, endpoint, data)
-    } else {
-        // Format: endpoint (assumes GET)
-        ("GET".to_string(), parts[0], None)
-    };
-
-    let client = reqwest::Client::new();
-    let url = format!("{server_url}/api/v0/{endpoint}");
-    
-    let mut request = match method.as_str() {
-        "GET" => client.get(&url),
-        "POST" => client.post(&url),
-        "PUT" => client.put(&url),
-        "DELETE" => client.delete(&url),
-        _ => {
-            println!("✗ Unsupported HTTP method: {method}");
-            return Ok(());
-        }
-    };
-
-    request = request.header("Authorization", format!("Bearer {}", config.token));
-
-    // Add JSON body if provided
-    if let Some(json_data) = data {
-        // Validate JSON
-        match serde_json::from_str::<Value>(&json_data) {
-            Ok(_) => {
-                request = request
-                    .header("Content-Type", "application/json")
-                    .body(json_data);
-            }
-            Err(e) => {
-                println!("✗ Invalid JSON data: {e}");
-                return Ok(());
-            }
-        }
-    }
-
-    match request.send().await {
-        Ok(response) => {
-            let status = response.status();
-            println!(" {method} {endpoint} → {status}");
-            
-            if let Ok(text) = response.text().await {
-                if !text.is_empty() {
-                    // Try to parse and pretty-print JSON
-                    match serde_json::from_str::<Value>(&text) {
-                        Ok(json) => {
-                            println!(" Response:");
-                            let pretty = serde_json::to_string_pretty(&json)?;
-                            for line in pretty.lines() {
-                                println!("  {line}");
-                            }
-                        }
-                        Err(_) => {
-                            // Not JSON, print as-is
-                            println!(" Response: {text}");
-                        }
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            println!("✗ Failed to execute API request: {e}");
-        }
-    }
+async fn auth_interactive() -> Result<()> {
+    println!("Auth command not yet implemented in this version.");
+    println!("Please use the REST API directly with your credentials.");
     Ok(())
 }
 
-fn print_banner() {
-    println!();
-    println!("╭──────────────────────────────────────────────────╮");
-    println!("│ ❋ Welcome to Raworc!                             │");
-    println!("│                                                  │");
-    println!("│   Remote Agent Work Orchestration                │");
-    println!("│                                                  │");
-    println!("│   Type /help for commands, /quit or q to exit    │");
-    println!("╰──────────────────────────────────────────────────╯");
-    println!();
+async fn show_auth_status() -> Result<()> {
+    println!("Status command not yet implemented in this version.");
+    println!("Please use the REST API directly.");
+    Ok(())
 }
+
+
+
+
 
 fn print_help() {
     println!("USAGE:");
@@ -770,5 +281,120 @@ fn print_help() {
     println!("    connect            Connect to authenticated server");
     println!("    auth               Authenticate with server");
     println!("    status             Show authentication status");
+    println!("    migrate            Run database migrations");
     println!("    help               Show this help message");
+    println!();
+    println!("MIGRATE SUBCOMMANDS:");
+    println!("    migrate            Run all pending migrations");
+    println!("    migrate status     Show migration status");
+    println!("    migrate up         Run all pending migrations");
+    println!("    migrate down       Rollback last migration");
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ApiResponse<T> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data: Option<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+async fn run_migrations(args: &[String]) -> Result<()> {
+    use sqlx::postgres::PgPoolOptions;
+    
+    // Get database URL
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://postgres@localhost/raworc".to_string());
+    
+    // Parse subcommand
+    let subcommand = if args.len() > 2 {
+        args[2].as_str()
+    } else {
+        "up"
+    };
+    
+    match subcommand {
+        "up" | "" => {
+            println!("Running database migrations...");
+            println!("Database URL: {}", database_url);
+            println!();
+            
+            // Connect to database
+            let pool = PgPoolOptions::new()
+                .max_connections(1)
+                .connect(&database_url)
+                .await?;
+            
+            // Run migrations
+            match sqlx::migrate!("./migrations").run(&pool).await {
+                Ok(_) => {
+                    println!("✓ All migrations completed successfully");
+                }
+                Err(e) => {
+                    println!("✗ Migration failed: {}", e);
+                    return Err(e.into());
+                }
+            }
+        }
+        "status" => {
+            println!("Checking migration status...");
+            println!("Database URL: {}", database_url);
+            println!();
+            
+            // Connect to database
+            let pool = PgPoolOptions::new()
+                .max_connections(1)
+                .connect(&database_url)
+                .await?;
+            
+            // Get migration status
+            let migrations = sqlx::migrate!("./migrations");
+            
+            println!("Available migrations:");
+            for migration in migrations.iter() {
+                println!("  {} - {}", 
+                    migration.version, 
+                    migration.description
+                );
+            }
+            
+            // Check which migrations have been applied
+            println!("\nApplied migrations:");
+            match sqlx::query("SELECT version, description, installed_on FROM _sqlx_migrations ORDER BY version")
+                .fetch_all(&pool)
+                .await
+            {
+                Ok(applied) => {
+                    for row in applied {
+                        let version: i64 = row.get("version");
+                        let description: String = row.get("description");
+                        let installed_on: chrono::DateTime<chrono::Utc> = row.get("installed_on");
+                        println!("  {} - {} (applied: {})", 
+                            version,
+                            description,
+                            installed_on.format("%Y-%m-%d %H:%M:%S")
+                        );
+                    }
+                }
+                Err(_) => {
+                    println!("  No migrations table found. Run 'raworc migrate up' to initialize.");
+                }
+            }
+        }
+        "down" => {
+            println!("✗ Rollback is not supported in this version");
+            println!("   Please manually rollback using SQL if needed");
+        }
+        _ => {
+            println!("Unknown migrate subcommand: {}", subcommand);
+            println!();
+            println!("Available subcommands:");
+            println!("  up      - Run all pending migrations (default)");
+            println!("  status  - Show migration status");
+            println!("  down    - Rollback last migration (not supported)");
+        }
+    }
+    
+    Ok(())
 }
