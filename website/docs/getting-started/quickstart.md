@@ -46,9 +46,21 @@ Then set the database URL and run migrations:
 export DATABASE_URL="postgresql://user:password@localhost:5432/raworc"
 psql $DATABASE_URL < migrations/001_create_rbac_tables.sql
 psql $DATABASE_URL < migrations/002_create_agents_table.sql
+psql $DATABASE_URL < migrations/003_create_sessions_table.sql
 ```
 
 ## Starting the Server
+
+### Set Required Environment Variables
+
+```bash
+# Required for authentication
+export JWT_SECRET="$(openssl rand -base64 32)"
+
+# Optional (defaults shown)
+export RAWORC_HOST="0.0.0.0"
+export RAWORC_PORT="9000"
+```
 
 ### Foreground Mode
 
@@ -93,7 +105,9 @@ Choose authentication method:
 
 For a new installation, use the default admin credentials:
 - Username: `admin`
-- Password: `changeme` (change this immediately!)
+- Password: `admin`
+
+⚠️ **Security Warning**: Change these default credentials immediately after first login!
 
 ## Using the CLI
 
