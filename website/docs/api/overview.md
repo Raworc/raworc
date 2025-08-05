@@ -227,6 +227,6 @@ Breaking changes will result in a new API version.
 ## Next Steps
 
 - Explore the [REST API Reference](/docs/api/rest-api) for detailed endpoint documentation
+- Review [Data Models](/docs/api/models) for request/response schemas
 - Try the [CLI Examples](/docs/guides/cli-examples) for interactive API usage
-- Read about [Authentication](/docs/api/authentication) in detail
 - Learn about [RBAC Permissions](/docs/admin/rbac) for API access control

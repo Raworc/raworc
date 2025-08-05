@@ -503,6 +503,241 @@ Delete (soft delete) an agent by ID.
 **Errors**:
 - `404 Not Found` - Agent not found
 
+## Sessions
+
+### GET /sessions
+
+List sessions for the authenticated user.
+
+**Authentication**: Required  
+**Permissions**: `list` on `sessions`
+
+**Query Parameters**:
+- `created_by` (optional) - Filter by creator (admin only)
+- `lifecycle_state` (optional) - Filter by state (NOT_STARTED, STARTED, BUSY, WAITING, TERMINATED)
+
+**Response**: `200 OK`
+```json
+[
+  {
+    "id": "61549530-3095-4cbf-b379-cd32416f626d",
+    "name": "analysis-session",
+    "starting_prompt": "Analyze Q4 sales data",
+    "lifecycle_state": "STARTED",
+    "waiting_timeout_seconds": 300,
+    "container_id": "k8s-pod-abc123",
+    "persistent_volume_id": "pv-session-001",
+    "created_by": "john.doe",
+    "parent_session_id": null,
+    "agents": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "name": "data-analyzer",
+        "model": "gpt-4"
+      }
+    ],
+    "created_at": "2025-01-20T10:00:00Z",
+    "started_at": "2025-01-20T10:01:00Z",
+    "last_activity_at": "2025-01-20T10:05:00Z",
+    "terminated_at": null,
+    "termination_reason": null,
+    "metadata": {
+      "project": "Q4-analysis"
+    }
+  }
+]
+```
+
+### POST /sessions
+
+Create a new session.
+
+**Authentication**: Required  
+**Permissions**: `create` on `sessions`
+
+**Request Body**:
+```json
+{
+  "name": "analysis-session",
+  "starting_prompt": "Analyze Q4 sales data and create visualizations",
+  "agent_ids": [
+    "550e8400-e29b-41d4-a716-446655440000",
+    "550e8400-e29b-41d4-a716-446655440001"
+  ],
+  "waiting_timeout_seconds": 300,
+  "metadata": {
+    "project": "Q4-analysis",
+    "priority": "high"
+  }
+}
+```
+
+**Response**: `200 OK`
+```json
+{
+  "id": "61549530-3095-4cbf-b379-cd32416f626d",
+  "name": "analysis-session",
+  "starting_prompt": "Analyze Q4 sales data and create visualizations",
+  "lifecycle_state": "NOT_STARTED",
+  "waiting_timeout_seconds": 300,
+  "container_id": null,
+  "persistent_volume_id": null,
+  "created_by": "john.doe",
+  "parent_session_id": null,
+  "agents": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "data-analyzer",
+      "model": "gpt-4"
+    }
+  ],
+  "created_at": "2025-01-20T10:00:00Z",
+  "metadata": {
+    "project": "Q4-analysis",
+    "priority": "high"
+  }
+}
+```
+
+**Errors**:
+- `400 Bad Request` - Invalid agent IDs or input
+- `404 Not Found` - Agent not found or inactive
+
+### GET /sessions/{id}
+
+Get a specific session by ID.
+
+**Authentication**: Required  
+**Permissions**: `get` on `sessions` (users can only access their own sessions unless admin)
+
+**Parameters**:
+- `id` (path) - Session ID
+
+**Response**: `200 OK`
+(Same format as POST response)
+
+**Errors**:
+- `403 Forbidden` - Cannot access other users' sessions
+- `404 Not Found` - Session not found
+
+### PUT /sessions/{id}
+
+Update session details.
+
+**Authentication**: Required  
+**Permissions**: `update` on `sessions` (users can only update their own sessions unless admin)
+
+**Parameters**:
+- `id` (path) - Session ID
+
+**Request Body** (partial update supported):
+```json
+{
+  "name": "Updated session name",
+  "waiting_timeout_seconds": 600,
+  "metadata": {
+    "updated": true,
+    "tags": ["important", "production"]
+  }
+}
+```
+
+**Response**: `200 OK`
+(Returns updated session)
+
+**Errors**:
+- `400 Bad Request` - No fields to update
+- `403 Forbidden` - Cannot update other users' sessions
+- `404 Not Found` - Session not found
+
+### PUT /sessions/{id}/state
+
+Update session lifecycle state.
+
+**Authentication**: Required  
+**Permissions**: `update` on `sessions` (users can only update their own sessions unless admin)
+
+**Parameters**:
+- `id` (path) - Session ID
+
+**Request Body**:
+```json
+{
+  "lifecycle_state": "STARTED",
+  "container_id": "k8s-pod-abc123",
+  "persistent_volume_id": "pv-session-001",
+  "termination_reason": null
+}
+```
+
+**Valid State Transitions**:
+- `NOT_STARTED` → `STARTED`, `TERMINATED`
+- `STARTED` → `BUSY`, `WAITING`, `TERMINATED`
+- `BUSY` → `WAITING`, `TERMINATED`
+- `WAITING` → `BUSY`, `TERMINATED`
+
+**Response**: `200 OK`
+(Returns updated session)
+
+**Errors**:
+- `400 Bad Request` - Invalid state transition
+- `403 Forbidden` - Cannot update other users' sessions
+- `404 Not Found` - Session not found
+
+### POST /sessions/{id}/remix
+
+Create a new session based on an existing session.
+
+**Authentication**: Required  
+**Permissions**: `create` on `sessions` (users can only remix their own sessions unless admin)
+
+**Parameters**:
+- `id` (path) - Parent session ID
+
+**Request Body**:
+```json
+{
+  "name": "analysis-continued",
+  "starting_prompt": "Continue the analysis with focus on trends",
+  "agent_ids": ["550e8400-e29b-41d4-a716-446655440002"],
+  "waiting_timeout_seconds": 600,
+  "metadata": {
+    "phase": "trend-analysis"
+  }
+}
+```
+
+Fields are optional - if not provided, values are inherited from parent session.
+
+**Response**: `200 OK`
+(Returns new session with `parent_session_id` set)
+
+**Errors**:
+- `400 Bad Request` - Invalid agent IDs
+- `403 Forbidden` - Cannot remix other users' sessions
+- `404 Not Found` - Parent session or agent not found
+
+### DELETE /sessions/{id}
+
+Soft delete a session (marks with deleted_at timestamp).
+
+**Authentication**: Required  
+**Permissions**: `delete` on `sessions` (users can only delete their own sessions unless admin)
+
+**Parameters**:
+- `id` (path) - Session ID
+
+**Response**: `204 No Content`
+
+**Notes**:
+- Sessions can be deleted in any state
+- Soft deleted sessions are excluded from list operations
+- Deleted sessions cannot be retrieved or modified
+
+**Errors**:
+- `403 Forbidden` - Cannot delete other users' sessions
+- `404 Not Found` - Session not found
+
 ## Error Responses
 
 All errors follow a consistent format:
