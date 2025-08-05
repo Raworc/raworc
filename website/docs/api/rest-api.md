@@ -180,7 +180,7 @@ Create a new service account.
 - `400 Bad Request` - Invalid input
 - `409 Conflict` - Account already exists
 
-### GET /service-accounts/{id}
+### GET /service-accounts/\{id\}
 
 Get a specific service account by ID or username.
 
@@ -207,7 +207,7 @@ Get a specific service account by ID or username.
 **Errors**:
 - `404 Not Found` - Account not found
 
-### PUT /service-accounts/{id}
+### PUT /service-accounts/\{id\}
 
 Update a service account's fields.
 
@@ -244,7 +244,7 @@ Update a service account's fields.
 - `404 Not Found` - Account not found
 - `403 Forbidden` - Insufficient permissions
 
-### DELETE /service-accounts/{id}
+### DELETE /service-accounts/\{id\}
 
 Delete a service account by ID or username.
 
@@ -259,7 +259,7 @@ Delete a service account by ID or username.
 **Errors**:
 - `404 Not Found` - Account not found
 
-### PUT /service-accounts/{id}/password
+### PUT /service-accounts/\{id\}/password
 
 Update a service account's password.
 
@@ -358,7 +358,7 @@ Create a new role.
 - `400 Bad Request` - Invalid input
 - `409 Conflict` - Role already exists
 
-### GET /roles/{id}
+### GET /roles/\{id\}
 
 Get a specific role by ID or name.
 
@@ -374,7 +374,7 @@ Get a specific role by ID or name.
 **Errors**:
 - `404 Not Found` - Role not found
 
-### DELETE /roles/{id}
+### DELETE /roles/\{id\}
 
 Delete a role by ID or name.
 
@@ -446,7 +446,7 @@ Create a new role binding.
 - `404 Not Found` - Role or principal not found
 - `409 Conflict` - Binding already exists
 
-### GET /role-bindings/{id}
+### GET /role-bindings/\{id\}
 
 Get a specific role binding by ID.
 
@@ -462,7 +462,7 @@ Get a specific role binding by ID.
 **Errors**:
 - `404 Not Found` - Binding not found
 
-### DELETE /role-bindings/{id}
+### DELETE /role-bindings/\{id\}
 
 Delete a role binding by ID.
 
@@ -549,7 +549,7 @@ Create a new agent.
 - `400 Bad Request` - Invalid input
 - `409 Conflict` - Agent name already exists
 
-### GET /agents/{id}
+### GET /agents/\{id\}
 
 Get a specific agent by ID or name.
 
@@ -565,7 +565,7 @@ Get a specific agent by ID or name.
 **Errors**:
 - `404 Not Found` - Agent not found
 
-### PUT /agents/{id}
+### PUT /agents/\{id\}
 
 Update an agent by ID.
 
@@ -592,7 +592,7 @@ Update an agent by ID.
 - `404 Not Found` - Agent not found
 - `409 Conflict` - Name already taken
 
-### DELETE /agents/{id}
+### DELETE /agents/\{id\}
 
 Delete (soft delete) an agent by ID.
 
@@ -707,7 +707,7 @@ Create a new session.
 - `400 Bad Request` - Invalid agent IDs or input
 - `404 Not Found` - Agent not found or inactive
 
-### GET /sessions/{id}
+### GET /sessions/\{id\}
 
 Get a specific session by ID.
 
@@ -724,7 +724,7 @@ Get a specific session by ID.
 - `403 Forbidden` - Cannot access other users' sessions
 - `404 Not Found` - Session not found
 
-### PUT /sessions/{id}
+### PUT /sessions/\{id\}
 
 Update session details.
 
@@ -754,7 +754,7 @@ Update session details.
 - `403 Forbidden` - Cannot update other users' sessions
 - `404 Not Found` - Session not found
 
-### PUT /sessions/{id}/state
+### PUT /sessions/\{id\}/state
 
 Update session lifecycle state.
 
@@ -788,7 +788,7 @@ Update session lifecycle state.
 - `403 Forbidden` - Cannot update other users' sessions
 - `404 Not Found` - Session not found
 
-### POST /sessions/{id}/remix
+### POST /sessions/\{id\}/remix
 
 Create a new session based on an existing session.
 
@@ -821,7 +821,7 @@ Fields are optional - if not provided, values are inherited from parent session.
 - `403 Forbidden` - Cannot remix other users' sessions
 - `404 Not Found` - Parent session or agent not found
 
-### DELETE /sessions/{id}
+### DELETE /sessions/\{id\}
 
 Soft delete a session (marks with deleted_at timestamp).
 
