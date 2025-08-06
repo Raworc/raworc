@@ -45,6 +45,7 @@ impl SessionLifecycle {
 pub struct Session {
     pub id: Uuid,
     pub name: String,
+    pub namespace: String, // Organization that owns this session
     pub starting_prompt: String,
     pub lifecycle_state: SessionLifecycle,
     pub waiting_timeout_seconds: Option<i32>,
@@ -64,6 +65,8 @@ pub struct Session {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateSessionRequest {
     pub name: String,
+    #[serde(default = "default_namespace")]
+    pub namespace: String, // Organization for this session
     pub starting_prompt: String,
     #[serde(default)]
     pub agent_ids: Vec<Uuid>,
@@ -123,34 +126,70 @@ fn default_metadata() -> serde_json::Value {
     serde_json::json!({})
 }
 
+fn default_namespace() -> String {
+    "default".to_string()
+}
+
 // Database queries
 impl Session {
-    pub async fn find_all(pool: &sqlx::PgPool, created_by: Option<&str>) -> Result<Vec<Session>, sqlx::Error> {
-        let query = if let Some(user) = created_by {
-            sqlx::query_as::<_, Session>(
-                r#"
-                SELECT id, name, starting_prompt, lifecycle_state, waiting_timeout_seconds,
-                       container_id, persistent_volume_id, created_by, parent_session_id,
-                       created_at, started_at, last_activity_at, terminated_at,
-                       termination_reason, metadata, deleted_at
-                FROM sessions
-                WHERE created_by = $1 AND deleted_at IS NULL
-                ORDER BY created_at DESC
-                "#
-            )
-            .bind(user)
-        } else {
-            sqlx::query_as::<_, Session>(
-                r#"
-                SELECT id, name, starting_prompt, lifecycle_state, waiting_timeout_seconds,
-                       container_id, persistent_volume_id, created_by, parent_session_id,
-                       created_at, started_at, last_activity_at, terminated_at,
-                       termination_reason, metadata, deleted_at
-                FROM sessions
-                WHERE deleted_at IS NULL
-                ORDER BY created_at DESC
-                "#
-            )
+    pub async fn find_all(pool: &sqlx::PgPool, namespace: Option<&str>, created_by: Option<&str>) -> Result<Vec<Session>, sqlx::Error> {
+        let query = match (namespace, created_by) {
+            (Some(ns), Some(user)) => {
+                sqlx::query_as::<_, Session>(
+                    r#"
+                    SELECT id, name, namespace, starting_prompt, lifecycle_state, waiting_timeout_seconds,
+                           container_id, persistent_volume_id, created_by, parent_session_id,
+                           created_at, started_at, last_activity_at, terminated_at,
+                           termination_reason, metadata, deleted_at
+                    FROM sessions
+                    WHERE namespace = $1 AND created_by = $2 AND deleted_at IS NULL
+                    ORDER BY created_at DESC
+                    "#
+                )
+                .bind(ns)
+                .bind(user)
+            },
+            (Some(ns), None) => {
+                sqlx::query_as::<_, Session>(
+                    r#"
+                    SELECT id, name, namespace, starting_prompt, lifecycle_state, waiting_timeout_seconds,
+                           container_id, persistent_volume_id, created_by, parent_session_id,
+                           created_at, started_at, last_activity_at, terminated_at,
+                           termination_reason, metadata, deleted_at
+                    FROM sessions
+                    WHERE namespace = $1 AND deleted_at IS NULL
+                    ORDER BY created_at DESC
+                    "#
+                )
+                .bind(ns)
+            },
+            (None, Some(user)) => {
+                sqlx::query_as::<_, Session>(
+                    r#"
+                    SELECT id, name, namespace, starting_prompt, lifecycle_state, waiting_timeout_seconds,
+                           container_id, persistent_volume_id, created_by, parent_session_id,
+                           created_at, started_at, last_activity_at, terminated_at,
+                           termination_reason, metadata, deleted_at
+                    FROM sessions
+                    WHERE created_by = $1 AND deleted_at IS NULL
+                    ORDER BY created_at DESC
+                    "#
+                )
+                .bind(user)
+            },
+            (None, None) => {
+                sqlx::query_as::<_, Session>(
+                    r#"
+                    SELECT id, name, namespace, starting_prompt, lifecycle_state, waiting_timeout_seconds,
+                           container_id, persistent_volume_id, created_by, parent_session_id,
+                           created_at, started_at, last_activity_at, terminated_at,
+                           termination_reason, metadata, deleted_at
+                    FROM sessions
+                    WHERE deleted_at IS NULL
+                    ORDER BY created_at DESC
+                    "#
+                )
+            }
         };
         
         query.fetch_all(pool).await
@@ -159,7 +198,7 @@ impl Session {
     pub async fn find_by_id(pool: &sqlx::PgPool, id: Uuid) -> Result<Option<Session>, sqlx::Error> {
         sqlx::query_as::<_, Session>(
             r#"
-            SELECT id, name, starting_prompt, lifecycle_state, waiting_timeout_seconds,
+            SELECT id, name, namespace, starting_prompt, lifecycle_state, waiting_timeout_seconds,
                    container_id, persistent_volume_id, created_by, parent_session_id,
                    created_at, started_at, last_activity_at, terminated_at,
                    termination_reason, metadata, deleted_at
@@ -179,15 +218,16 @@ impl Session {
     ) -> Result<Session, sqlx::Error> {
         let session = sqlx::query_as::<_, Session>(
             r#"
-            INSERT INTO sessions (name, starting_prompt, waiting_timeout_seconds, created_by, metadata)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, name, starting_prompt, lifecycle_state, waiting_timeout_seconds,
+            INSERT INTO sessions (name, namespace, starting_prompt, waiting_timeout_seconds, created_by, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, name, namespace, starting_prompt, lifecycle_state, waiting_timeout_seconds,
                       container_id, persistent_volume_id, created_by, parent_session_id,
                       created_at, started_at, last_activity_at, terminated_at,
                       termination_reason, metadata, deleted_at
             "#
         )
         .bind(&req.name)
+        .bind(&req.namespace)
         .bind(&req.starting_prompt)
         .bind(req.waiting_timeout_seconds)
         .bind(&created_by)
@@ -218,17 +258,18 @@ impl Session {
         let session = sqlx::query_as::<_, Session>(
             r#"
             INSERT INTO sessions (
-                name, starting_prompt, waiting_timeout_seconds, 
+                name, namespace, starting_prompt, waiting_timeout_seconds, 
                 created_by, parent_session_id, metadata
             )
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, name, starting_prompt, lifecycle_state, waiting_timeout_seconds,
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id, name, namespace, starting_prompt, lifecycle_state, waiting_timeout_seconds,
                       container_id, persistent_volume_id, created_by, parent_session_id,
                       created_at, started_at, last_activity_at, terminated_at,
                       termination_reason, metadata, deleted_at
             "#
         )
         .bind(&req.name)
+        .bind(&parent.namespace) // Inherit namespace from parent
         .bind(req.starting_prompt.as_ref().unwrap_or(&parent.starting_prompt))
         .bind(req.waiting_timeout_seconds.unwrap_or(parent.waiting_timeout_seconds.unwrap_or(300)))
         .bind(&created_by)
@@ -300,7 +341,7 @@ impl Session {
         query_builder.push_str(" WHERE id = $");
         param_count += 1;
         query_builder.push_str(&param_count.to_string());
-        query_builder.push_str(" RETURNING id, name, starting_prompt, lifecycle_state, waiting_timeout_seconds, container_id, persistent_volume_id, created_by, parent_session_id, created_at, started_at, last_activity_at, terminated_at, termination_reason, metadata, deleted_at");
+        query_builder.push_str(" RETURNING id, name, namespace, starting_prompt, lifecycle_state, waiting_timeout_seconds, container_id, persistent_volume_id, created_by, parent_session_id, created_at, started_at, last_activity_at, terminated_at, termination_reason, metadata, deleted_at");
 
         // Build and execute query
         let mut query = sqlx::query_as::<_, Session>(&query_builder)
@@ -364,7 +405,7 @@ impl Session {
         param_count += 1;
         query_builder.push_str(&param_count.to_string());
         query_builder.push_str(" AND deleted_at IS NULL");
-        query_builder.push_str(" RETURNING id, name, starting_prompt, lifecycle_state, waiting_timeout_seconds, container_id, persistent_volume_id, created_by, parent_session_id, created_at, started_at, last_activity_at, terminated_at, termination_reason, metadata, deleted_at");
+        query_builder.push_str(" RETURNING id, name, namespace, starting_prompt, lifecycle_state, waiting_timeout_seconds, container_id, persistent_volume_id, created_by, parent_session_id, created_at, started_at, last_activity_at, terminated_at, termination_reason, metadata, deleted_at");
 
         let mut query = sqlx::query_as::<_, Session>(&query_builder);
 

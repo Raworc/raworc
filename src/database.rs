@@ -87,7 +87,7 @@ impl AppState {
     pub async fn get_all_service_accounts(&self) -> Result<Vec<ServiceAccount>, DatabaseError> {
         let rows = query(
             r#"
-            SELECT id, name, namespace, password_hash, description, created_at, updated_at, active, last_login_at
+            SELECT id, name, pass, description, created_at, updated_at, active, last_login_at
             FROM service_accounts
             ORDER BY created_at DESC
             "#
@@ -98,11 +98,7 @@ impl AppState {
         Ok(rows.into_iter().map(|r| ServiceAccount {
             id: Some(r.get("id")),
             user: r.get("name"),
-            namespace: {
-                let ns: String = r.get("namespace");
-                if ns == "default" { None } else { Some(ns) }
-            },
-            pass_hash: r.get("password_hash"),
+            pass_hash: r.get("pass"),
             description: r.get("description"),
             created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
             updated_at: r.get::<chrono::DateTime<chrono::Utc>, _>("updated_at").to_rfc3339(),
@@ -115,18 +111,14 @@ impl AppState {
     pub async fn delete_service_account(
         &self,
         user: &str,
-        namespace: Option<&str>,
     ) -> Result<bool, DatabaseError> {
-        let namespace_value = namespace.unwrap_or("default");
-        
         let result = query(
             r#"
             DELETE FROM service_accounts
-            WHERE name = $1 AND namespace = $2
+            WHERE name = $1
             "#
         )
         .bind(user)
-        .bind(namespace_value)
         .execute(&*self.db)
         .await?;
 
@@ -152,21 +144,17 @@ impl AppState {
     pub async fn update_service_account_password(
         &self,
         user: &str,
-        namespace: Option<&str>,
         new_pass_hash: &str,
     ) -> Result<bool, DatabaseError> {
-        let namespace_value = namespace.unwrap_or("default");
-        
         let result = query(
             r#"
             UPDATE service_accounts
-            SET password_hash = $1, updated_at = NOW()
-            WHERE name = $2 AND namespace = $3
+            SET pass = $1, updated_at = NOW()
+            WHERE name = $2
             "#
         )
         .bind(new_pass_hash)
         .bind(user)
-        .bind(namespace_value)
         .execute(&*self.db)
         .await?;
 
@@ -183,7 +171,7 @@ impl AppState {
         let result = query(
             r#"
             UPDATE service_accounts
-            SET password_hash = $1, updated_at = NOW()
+            SET pass = $1, updated_at = NOW()
             WHERE id = $2
             "#
         )

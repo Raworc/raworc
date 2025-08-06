@@ -9,13 +9,12 @@ pub struct Subject {
     pub name: String, // External subject identifier (e.g., "user@example.com", "system:serviceaccount:namespace:name")
 }
 
-// Service Account - Internal account with credentials
+// Service Account - Global account with credentials (can work across organizations)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceAccount {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Uuid>,
     pub user: String,
-    pub namespace: Option<String>, // Optional namespace for organization
     pub pass_hash: String,
     pub description: Option<String>,
     pub created_at: String,
@@ -34,13 +33,12 @@ pub struct Rule {
     pub resource_names: Option<Vec<String>>, // Optional specific resource names
 }
 
-// Role - Collection of permissions
+// Role - Global collection of permissions (can be bound to specific organizations)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Role {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Uuid>,
     pub name: String,
-    pub namespace: Option<String>, // None for cluster-wide roles
     pub rules: Vec<Rule>,
     pub description: Option<String>,
     pub created_at: String,
@@ -59,18 +57,17 @@ pub enum SubjectType {
 pub struct RoleBindingSubject {
     pub kind: SubjectType,
     pub name: String,
-    pub namespace: Option<String>, // For service accounts
 }
 
-// Role Binding - Links roles to subjects/service accounts
+// Role Binding - Links roles to subjects and specifies WHERE they apply
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleBinding {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Uuid>,
-    pub name: String,
-    pub namespace: Option<String>,
-    pub role_ref: RoleRef,
-    pub subjects: Vec<RoleBindingSubject>,
+    pub role_name: String,
+    pub principal_name: String,
+    pub principal_type: SubjectType,
+    pub namespace: Option<String>, // NULL = global access, String = specific organization
     pub created_at: String,
 }
 

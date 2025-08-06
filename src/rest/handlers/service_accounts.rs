@@ -79,7 +79,7 @@ pub async fn get_service_account(
             .into_iter()
             .find(|sa| sa.id == Some(uuid))
     } else {
-        state.get_service_account(&id, None).await?
+        state.get_service_account(&id).await?
     };
     
     let account = account.ok_or(ApiError::NotFound("Service account not found".to_string()))?;
@@ -91,14 +91,13 @@ pub async fn create_service_account(
     Json(req): Json<CreateServiceAccountRequest>,
 ) -> ApiResult<Json<ServiceAccountResponse>> {
     // Check if already exists
-    if let Ok(Some(_)) = state.get_service_account(&req.user, req.namespace.as_deref()).await {
+    if let Ok(Some(_)) = state.get_service_account(&req.user).await {
         return Err(ApiError::Conflict("Service account already exists".to_string()));
     }
     
     let pass_hash = hash(&req.pass, DEFAULT_COST)?;
     let account = state.create_service_account(
         &req.user,
-        req.namespace,
         &pass_hash,
         req.description,
     ).await?;
@@ -113,7 +112,7 @@ pub async fn delete_service_account(
     let deleted = if uuid::Uuid::parse_str(&id).is_ok() {
         state.delete_service_account_by_id(&id).await?
     } else {
-        state.delete_service_account(&id, None).await?
+        state.delete_service_account(&id).await?
     };
     
     if !deleted {
@@ -136,7 +135,7 @@ pub async fn update_service_account_password(
             .into_iter()
             .find(|sa| sa.id == Some(uuid))
     } else {
-        state.get_service_account(&id, None).await?
+        state.get_service_account(&id).await?
     };
     
     let account = account.ok_or(ApiError::NotFound("Service account not found".to_string()))?;
@@ -174,7 +173,7 @@ pub async fn update_service_account(
             .into_iter()
             .find(|sa| sa.id == Some(uuid))
     } else {
-        state.get_service_account(&id, None).await?
+        state.get_service_account(&id).await?
     };
     
     let account = account.ok_or(ApiError::NotFound("Service account not found".to_string()))?;

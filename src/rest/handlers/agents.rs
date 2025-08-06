@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     Json,
 };
 use serde::Serialize;
@@ -14,6 +14,7 @@ use crate::rest::error::{ApiError, ApiResult};
 pub struct AgentResponse {
     pub id: String,
     pub name: String,
+    pub namespace: String,
     pub description: Option<String>,
     pub instructions: String,
     pub model: String,
@@ -31,6 +32,7 @@ impl From<Agent> for AgentResponse {
         Self {
             id: agent.id.to_string(),
             name: agent.name,
+            namespace: agent.namespace,
             description: agent.description,
             instructions: agent.instructions,
             model: agent.model,
@@ -45,10 +47,16 @@ impl From<Agent> for AgentResponse {
     }
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct ListAgentsQuery {
+    pub namespace: Option<String>,
+}
+
 pub async fn list_agents(
     State(state): State<Arc<AppState>>,
+    Query(query): Query<ListAgentsQuery>,
 ) -> ApiResult<Json<Vec<AgentResponse>>> {
-    let agents = Agent::find_all(&state.db)
+    let agents = Agent::find_all(&state.db, query.namespace.as_deref())
         .await
         .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to list agents: {}", e)))?;
     
@@ -60,11 +68,13 @@ pub async fn get_agent(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<AgentResponse>> {
-    // Try parsing as UUID first, then as name
+    // Try parsing as UUID first
     let agent = if let Ok(uuid) = Uuid::parse_str(&id) {
         Agent::find_by_id(&state.db, uuid).await
     } else {
-        Agent::find_by_name(&state.db, &id).await
+        // For name lookups, we need a namespace - default to "default"
+        // In a real implementation, you'd get this from the auth context
+        Agent::find_by_name(&state.db, &id, "default").await
     }
     .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to fetch agent: {}", e)))?
     .ok_or(ApiError::NotFound("Agent not found".to_string()))?;
@@ -76,9 +86,9 @@ pub async fn create_agent(
     State(state): State<Arc<AppState>>,
     Json(req): Json<CreateAgentRequest>,
 ) -> ApiResult<Json<AgentResponse>> {
-    // Check if agent with same name already exists
-    if let Ok(Some(_)) = Agent::find_by_name(&state.db, &req.name).await {
-        return Err(ApiError::Conflict(format!("Agent '{}' already exists", req.name)));
+    // Check if agent with same name already exists in the namespace
+    if let Ok(Some(_)) = Agent::find_by_name(&state.db, &req.name, &req.namespace).await {
+        return Err(ApiError::Conflict(format!("Agent '{}' already exists in namespace '{}'", req.name, req.namespace)));
     }
 
     let agent = Agent::create(&state.db, req)
