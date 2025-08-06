@@ -52,8 +52,7 @@ Authenticate a service account and receive a JWT token.
 ```json
 {
   "user": "admin",
-  "pass": "password123",
-  "namespace": null
+  "pass": "password123"
 }
 ```
 
@@ -79,7 +78,6 @@ Get information about the authenticated user.
 ```json
 {
   "user": "admin",
-  "namespace": null,
   "type": "ServiceAccount"
 }
 ```
@@ -157,7 +155,6 @@ Create a new service account.
 {
   "user": "deploy-bot",
   "pass": "SecurePass123!",
-  "namespace": "production",
   "description": "Deployment automation bot"
 }
 ```
@@ -167,7 +164,6 @@ Create a new service account.
 {
   "id": "550e8400-e29b-41d4-a716-446655440001",
   "user": "deploy-bot",
-  "namespace": "production",
   "description": "Deployment automation bot",
   "active": true,
   "created_at": "2025-01-01T00:00:00Z",
@@ -195,7 +191,6 @@ Get a specific service account by ID or username.
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "user": "admin",
-  "namespace": null,
   "description": "Administrator account",
   "active": true,
   "created_at": "2025-01-01T00:00:00Z",
@@ -220,7 +215,6 @@ Update a service account's fields.
 **Request Body** (all fields optional):
 ```json
 {
-  "namespace": "new-namespace",
   "description": "Updated description",
   "active": false
 }
@@ -231,7 +225,6 @@ Update a service account's fields.
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "user": "admin",
-  "namespace": "new-namespace",
   "description": "Updated description",
   "active": false,
   "created_at": "2025-01-01T00:00:00Z",
@@ -299,7 +292,6 @@ List all roles.
   {
     "id": "123e4567-e89b-12d3-a456-426614174000",
     "name": "admin",
-    "namespace": null,
     "rules": [
       {
         "api_groups": ["*"],
@@ -324,7 +316,6 @@ Create a new role.
 ```json
 {
   "name": "reader",
-  "namespace": null,
   "rules": [
     {
       "api_groups": ["api"],
@@ -341,7 +332,6 @@ Create a new role.
 {
   "id": "123e4567-e89b-12d3-a456-426614174001",
   "name": "reader",
-  "namespace": null,
   "rules": [
     {
       "api_groups": ["api"],
@@ -403,10 +393,10 @@ List all role bindings.
 [
   {
     "id": "987f6543-a21b-98c7-d654-321098765432",
-    "namespace": null,
     "role_name": "admin",
     "principal_name": "admin",
     "principal_type": "ServiceAccount",
+    "namespace": null,
     "created_at": "2025-01-01T00:00:00Z"
   }
 ]
@@ -425,9 +415,13 @@ Create a new role binding.
   "role_name": "reader",
   "principal_name": "deploy-bot",
   "principal_type": "ServiceAccount",
-  "namespace": null
+  "namespace": "production"
 }
 ```
+
+**Note**: `namespace` specifies where this role binding applies:
+- `null` or omitted = Global binding (all namespaces)
+- Specific value = Binding only applies to that namespace
 
 **Response**: `200 OK`
 ```json
@@ -481,10 +475,13 @@ Delete a role binding by ID.
 
 ### GET /agents
 
-List all active agents.
+List active agents from accessible namespaces.
 
 **Authentication**: Required  
 **Permissions**: `get`, `list` on `agents`
+
+**Query Parameters**:
+- `namespace` (optional) - Filter to specific namespace (if authorized)
 
 **Response**: `200 OK`
 ```json
@@ -492,6 +489,7 @@ List all active agents.
   {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "name": "assistant",
+    "namespace": "default",
     "description": "General purpose assistant agent",
     "instructions": "You are a helpful AI assistant. Be concise and accurate in your responses.",
     "model": "gpt-4",
@@ -517,6 +515,7 @@ Create a new agent.
 ```json
 {
   "name": "code-reviewer",
+  "namespace": "development",
   "description": "Code review specialist",
   "instructions": "You are an expert code reviewer. Focus on security, performance, and best practices.",
   "model": "gpt-4-turbo",
@@ -532,6 +531,7 @@ Create a new agent.
 {
   "id": "550e8400-e29b-41d4-a716-446655440001",
   "name": "code-reviewer",
+  "namespace": "development",
   "description": "Code review specialist",
   "instructions": "You are an expert code reviewer. Focus on security, performance, and best practices.",
   "model": "gpt-4-turbo",
@@ -611,12 +611,13 @@ Delete (soft delete) an agent by ID.
 
 ### GET /sessions
 
-List sessions for the authenticated user.
+List sessions from accessible namespaces.
 
 **Authentication**: Required  
 **Permissions**: `list` on `sessions`
 
 **Query Parameters**:
+- `namespace` (optional) - Filter to specific namespace (if authorized)
 - `created_by` (optional) - Filter by creator (admin only)
 - `lifecycle_state` (optional) - Filter by state (NOT_STARTED, STARTED, BUSY, WAITING, TERMINATED)
 
@@ -626,6 +627,7 @@ List sessions for the authenticated user.
   {
     "id": "61549530-3095-4cbf-b379-cd32416f626d",
     "name": "analysis-session",
+    "namespace": "production",
     "starting_prompt": "Analyze Q4 sales data",
     "lifecycle_state": "STARTED",
     "waiting_timeout_seconds": 300,
@@ -663,6 +665,7 @@ Create a new session.
 ```json
 {
   "name": "analysis-session",
+  "namespace": "production",
   "starting_prompt": "Analyze Q4 sales data and create visualizations",
   "agent_ids": [
     "550e8400-e29b-41d4-a716-446655440000",
@@ -681,6 +684,7 @@ Create a new session.
 {
   "id": "61549530-3095-4cbf-b379-cd32416f626d",
   "name": "analysis-session",
+  "namespace": "production",
   "starting_prompt": "Analyze Q4 sales data and create visualizations",
   "lifecycle_state": "NOT_STARTED",
   "waiting_timeout_seconds": 300,
