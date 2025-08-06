@@ -10,7 +10,7 @@ use utoipa::ToSchema;
 use crate::models::{AppState, Session, SessionLifecycle, CreateSessionRequest, RemixSessionRequest, UpdateSessionStateRequest, UpdateSessionRequest};
 use crate::rest::error::{ApiError, ApiResult};
 use crate::rest::middleware::AuthContext;
-use crate::rest::rbac_enforcement::{check_api_permission, permissions, get_user_namespace};
+use crate::rest::rbac_enforcement::{check_api_permission, permissions};
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct SessionResponse {
