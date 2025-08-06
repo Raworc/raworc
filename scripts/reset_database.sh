@@ -37,8 +37,23 @@ psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "DROP DATABASE IF EXISTS
 echo -e "${GREEN}Creating new database...${NC}"
 psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME;"
 
-echo -e "${GREEN}Running initial migration...${NC}"
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME < migrations/20250806000000_initial_schema.sql
+echo -e "${GREEN}Running migrations...${NC}"
+
+# Check if sqlx is available and use it, otherwise fall back to direct SQL
+if command -v sqlx &> /dev/null; then
+    export DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME"
+    if sqlx migrate run 2>/dev/null; then
+        echo -e "${GREEN}Migrations applied via sqlx${NC}"
+    else
+        # Fallback to direct SQL if sqlx fails
+        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME < migrations/20250806000000_initial_schema.sql
+        echo -e "${GREEN}Migrations applied via psql${NC}"
+    fi
+else
+    # No sqlx available, use direct SQL
+    psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME < migrations/20250806000000_initial_schema.sql
+    echo -e "${GREEN}Migrations applied via psql${NC}"
+fi
 
 echo -e "${GREEN}✅ Database reset complete!${NC}"
 echo
