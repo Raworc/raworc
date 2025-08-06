@@ -11,37 +11,37 @@ Raworc is built as a cloud-native platform designed for scalability, reliability
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         Control Plane                            │
+│                         Control Plane                           │
 ├─────────────────────┬───────────────────────────────────────────┤
 │   Raworc CLI        │         Raworc Service (REST API)         │
-│  (User Interface)   │    ┌─────────────┬──────────────────┐    │
-│                     │    │   Auth      │   RBAC System     │    │
-│                     │    │   Module    │   (Roles/Perms)   │    │
-│                     │    └─────────────┴──────────────────┘    │
+│  (User Interface)   │    ┌─────────────┬──────────────────┐     │
+│                     │    │   Auth      │   RBAC System    │     │
+│                     │    │   Module    │   (Roles/Perms)  │     │
+│                     │    └─────────────┴──────────────────┘     │
 └─────────────────────┴───────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                          Data Layer                              │
-│                    PostgreSQL Database                           │
-│  ┌──────────────┬────────────────┬─────────────────────────┐   │
-│  │ Service      │     Roles &     │       Agents &          │   │
-│  │ Accounts     │  Role Bindings  │      Sessions           │   │
-│  └──────────────┴────────────────┴─────────────────────────┘   │
+│                          Data Layer                             │
+│                    PostgreSQL Database                          │
+│  ┌──────────────┬────────────────┬─────────────────────────┐    │
+│  │ Service      │     Roles &    │       Agents &          │    │
+│  │ Accounts     │  Role Bindings │      Sessions           │    │
+│  └──────────────┴────────────────┴─────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Session Runtime                             │
-│                  (Kubernetes Cluster)                            │
-│  ┌────────────────────────────────────────────────────────┐    │
-│  │              Container Per Session                      │    │
-│  │  ┌────────────┬─────────────┬────────────────────┐    │    │
-│  │  │Guardrails  │   Agents    │  Persistent Volume │    │    │
-│  │  │& Safety    │  (Built-in  │    (Session State) │    │    │
-│  │  │            │ & External) │                     │    │    │
-│  │  └────────────┴─────────────┴────────────────────┘    │    │
-│  └────────────────────────────────────────────────────────┘    │
+│                      Session Runtime                            │
+│                  (Kubernetes Cluster)                           │
+│  ┌────────────────────────────────────────────────────────┐     │
+│  │              Container Per Session                     │     │
+│  │  ┌────────────┬─────────────┬────────────────────┐     │     │
+│  │  │Guardrails  │   Agents    │  Persistent Volume │     │     │
+│  │  │& Safety    │  (Built-in  │    (Session State) │     │     │
+│  │  │            │ & External) │                    │     │     │
+│  │  └────────────┴─────────────┴────────────────────┘     │     │
+│  └────────────────────────────────────────────────────────┘     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -52,12 +52,14 @@ Raworc is built as a cloud-native platform designed for scalability, reliability
 The control plane manages the entire Raworc system and consists of:
 
 #### Raworc CLI (`raworc`)
+
 - Command-line interface for users and developers
 - Supports interactive mode with auto-completion
 - Handles authentication and session management
 - Provides direct API access through `/api` commands
 
 #### Raworc Service
+
 - REST API server written in Rust
 - Handles all platform operations
 - Manages authentication via JWT tokens
@@ -69,17 +71,20 @@ The control plane manages the entire Raworc system and consists of:
 PostgreSQL serves as the primary database, storing:
 
 #### Service Accounts
+
 - Internal authentication entities
 - Username/password credentials
 - Namespace scoping
 - Active/inactive status tracking
 
 #### RBAC System
+
 - **Roles**: Define permissions through rules
 - **Role Bindings**: Connect roles to principals
 - **Rules**: Specify API groups, resources, and verbs
 
 #### Agents
+
 - Agent configurations and metadata
 - Model specifications
 - Tool and guardrail assignments
@@ -87,6 +92,7 @@ PostgreSQL serves as the primary database, storing:
 - Knowledge base references
 
 #### Sessions (Future)
+
 - Session metadata and configuration
 - Agent assignments
 - Resource allocations
@@ -97,18 +103,21 @@ PostgreSQL serves as the primary database, storing:
 The Kubernetes-based runtime environment provides:
 
 #### Container Isolation
+
 - Each session runs in its own container
 - Complete resource isolation
 - Security boundaries
 - Custom runtime environments
 
 #### Persistent Volumes
+
 - State preservation across session restarts
 - Data continuity for remixing
 - Efficient storage management
 - Backup and recovery capabilities
 
 #### Agent Execution
+
 - Built-in agent runtime (`raworc-agent`)
 - External agent integration
 - Tool execution environment
@@ -185,16 +194,19 @@ User → Select Previous Session → Copy PV → New Container → Continue Work
 ## Scalability Considerations
 
 ### Horizontal Scaling
+
 - **API Servers**: Multiple replicas behind load balancer
 - **Database**: Read replicas for query distribution
 - **Session Containers**: Unlimited parallel sessions
 
 ### Vertical Scaling
+
 - **Container Resources**: Configurable CPU/memory per session
 - **Persistent Volumes**: Expandable storage capacity
 - **Database**: Upgradeable instance sizes
 
 ### Performance Optimization
+
 - **Connection Pooling**: Efficient database connections
 - **Caching**: Redis integration (future)
 - **Lazy Loading**: On-demand resource allocation
@@ -203,12 +215,14 @@ User → Select Previous Session → Copy PV → New Container → Continue Work
 ## Integration Points
 
 ### External Systems
+
 - **CI/CD Pipelines**: API integration for automation
 - **Monitoring**: Prometheus metrics export
 - **Logging**: Structured logs for analysis
 - **Storage**: S3-compatible object storage
 
 ### Agent Integration
+
 - **LLM Providers**: OpenAI, Anthropic, etc.
 - **Tool Services**: External API calls
 - **Knowledge Bases**: Vector databases
@@ -217,13 +231,16 @@ User → Select Previous Session → Copy PV → New Container → Continue Work
 ## Future Architecture Evolution
 
 ### Planned Enhancements
+
 - **Multi-Region**: Geographic distribution
 - **Edge Deployment**: Local execution capabilities
 - **Streaming**: Real-time session updates
 - **Federation**: Multi-cluster coordination
 
 ### Extensibility
+
 - **Plugin System**: Custom extensions
 - **Webhook Support**: Event notifications
 - **Custom Resources**: Kubernetes CRDs
 - **API Extensions**: Versioned endpoints
+
