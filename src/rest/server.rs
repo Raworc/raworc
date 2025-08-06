@@ -8,6 +8,9 @@ use crate::database::{initialize_app_state, seed_rbac_system};
 use crate::rest::create_router;
 
 pub async fn run_rest_server() -> Result<()> {
+    // Load .env file if it exists
+    dotenvy::dotenv().ok();
+    
     // Write PID file for process management
     let pid = process::id();
     let pid_file = "/tmp/raworc.pid";
