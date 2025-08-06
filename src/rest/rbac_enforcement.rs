@@ -5,6 +5,7 @@ use crate::rbac::PermissionContext;
 use crate::auth::check_permission;
 
 /// Permission requirements for each API endpoint
+#[allow(dead_code)]
 pub struct PermissionRequirement {
     pub api_group: &'static str,
     pub resource: &'static str,
@@ -72,6 +73,7 @@ pub mod permissions {
         PermissionRequirement::new("api", "roles", "get", false);
     pub const ROLE_CREATE: PermissionRequirement = 
         PermissionRequirement::new("api", "roles", "create", false);
+    #[allow(dead_code)]
     pub const ROLE_UPDATE: PermissionRequirement = 
         PermissionRequirement::new("api", "roles", "update", false);
     pub const ROLE_DELETE: PermissionRequirement = 
@@ -84,6 +86,7 @@ pub mod permissions {
         PermissionRequirement::new("api", "role-bindings", "get", false);
     pub const ROLE_BINDING_CREATE: PermissionRequirement = 
         PermissionRequirement::new("api", "role-bindings", "create", false);
+    #[allow(dead_code)]
     pub const ROLE_BINDING_UPDATE: PermissionRequirement = 
         PermissionRequirement::new("api", "role-bindings", "update", false);
     pub const ROLE_BINDING_DELETE: PermissionRequirement = 
@@ -102,16 +105,20 @@ pub mod permissions {
         PermissionRequirement::new("api", "agents", "delete", true);
 
     // Session permissions (namespace-scoped)
+    #[allow(dead_code)]
     pub const SESSION_LIST: PermissionRequirement = 
         PermissionRequirement::new("api", "sessions", "list", true);
+    #[allow(dead_code)]
     pub const SESSION_GET: PermissionRequirement = 
         PermissionRequirement::new("api", "sessions", "get", true);
+    #[allow(dead_code)]
     pub const SESSION_CREATE: PermissionRequirement = 
         PermissionRequirement::new("api", "sessions", "create", true);
     pub const SESSION_UPDATE: PermissionRequirement = 
         PermissionRequirement::new("api", "sessions", "update", true);
     pub const SESSION_DELETE: PermissionRequirement = 
         PermissionRequirement::new("api", "sessions", "delete", true);
+    #[allow(dead_code)]
     pub const SESSION_LIST_ALL: PermissionRequirement = 
         PermissionRequirement::new("api", "sessions", "list-all", false);
 }
@@ -122,6 +129,7 @@ pub fn get_user_namespace(auth: &AuthContext) -> Option<String> {
 }
 
 /// Check if user can access a specific namespace
+#[allow(dead_code)]
 pub async fn check_namespace_access(
     auth: &AuthContext,
     state: &AppState,
