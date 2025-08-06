@@ -43,6 +43,27 @@ The port number for the REST API server:
 RAWORC_PORT=8080 raworc start
 ```
 
+### Organization Configuration
+
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|  
+| `DEFAULT_NAMESPACE` | Default organization namespace for resources | `default` | `acme-corp`, `main` |
+
+#### DEFAULT_NAMESPACE
+
+Sets the default organization when creating resources without specifying a namespace:
+- Resources (agents, sessions) are created in this organization by default
+- Service accounts and roles are always global
+- Role bindings can specify organization scope
+
+```bash
+# Set default organization
+DEFAULT_NAMESPACE=acme-corp raworc start
+
+# Resources created without namespace go to acme-corp
+POST /agents {"name":"bot"} # Creates in acme-corp namespace
+```
+
 ### Database Configuration
 
 | Variable | Description | Default | Example |
@@ -386,8 +407,44 @@ nc -zv localhost $RAWORC_PORT
 [ -z "$JWT_SECRET" ] && echo "WARNING: JWT_SECRET not set"
 ```
 
+## Multi-Organization Setup
+
+### Namespace Isolation
+
+Raworc uses namespaces to represent organizations:
+- Each organization has its own namespace (e.g., `acme-corp`, `tech-startup`)
+- Resources (agents, sessions) belong to specific organizations
+- Service accounts and roles are global and can be granted access to multiple organizations
+
+### Organization Management Examples
+
+```bash
+# Start server with default organization
+DEFAULT_NAMESPACE=acme-corp raworc start
+
+# Create resources for different organizations
+POST /agents {"name":"bot1","namespace":"acme-corp",...}
+POST /agents {"name":"bot2","namespace":"tech-startup",...}
+
+# Grant user access to specific organization
+POST /role-bindings {
+  "role_name":"developer",
+  "principal_name":"alice",
+  "namespace":"acme-corp"  # Alice can only access acme-corp
+}
+
+# Grant user global access (platform admin)
+POST /role-bindings {
+  "role_name":"admin",
+  "principal_name":"platform-admin",
+  "namespace":null  # null = access to all organizations
+}
+```
+
 ## Next Steps
 
-- Set up [RBAC permissions](/docs/admin/rbac) for access control
+- Set up [RBAC and Organizations](/docs/admin/rbac-namespaces) for multi-tenant access control
+- Learn about [Organization Workflows](/docs/guides/organization-workflows)
+- Review [Namespace Architecture](/docs/concepts/namespace-architecture)
 - Configure [monitoring](/docs/admin/monitoring) for production
 - Review [security best practices](/docs/admin/security)

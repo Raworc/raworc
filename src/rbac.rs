@@ -9,13 +9,12 @@ pub struct Subject {
     pub name: String, // External subject identifier (e.g., "user@example.com", "system:serviceaccount:namespace:name")
 }
 
-// Service Account - Internal account with credentials
+// Service Account - Global account with credentials (can work across organizations)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceAccount {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Uuid>,
     pub user: String,
-    pub namespace: Option<String>, // Optional namespace for organization
     pub pass_hash: String,
     pub description: Option<String>,
     pub created_at: String,
@@ -34,13 +33,12 @@ pub struct Rule {
     pub resource_names: Option<Vec<String>>, // Optional specific resource names
 }
 
-// Role - Collection of permissions
+// Role - Global collection of permissions (can be bound to specific organizations)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Role {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Uuid>,
     pub name: String,
-    pub namespace: Option<String>, // None for cluster-wide roles
     pub rules: Vec<Rule>,
     pub description: Option<String>,
     pub created_at: String,
@@ -59,18 +57,17 @@ pub enum SubjectType {
 pub struct RoleBindingSubject {
     pub kind: SubjectType,
     pub name: String,
-    pub namespace: Option<String>, // For service accounts
 }
 
-// Role Binding - Links roles to subjects/service accounts
+// Role Binding - Links roles to subjects and specifies WHERE they apply
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleBinding {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Uuid>,
-    pub name: String,
-    pub namespace: Option<String>,
-    pub role_ref: RoleRef,
-    pub subjects: Vec<RoleBindingSubject>,
+    pub role_name: String,
+    pub principal_name: String,
+    pub principal_type: SubjectType,
+    pub namespace: Option<String>, // NULL = global access, String = specific organization
     pub created_at: String,
 }
 
@@ -101,10 +98,8 @@ impl AuthPrincipal {
 
     #[allow(dead_code)]
     pub fn namespace(&self) -> Option<&str> {
-        match self {
-            AuthPrincipal::Subject(_) => None,
-            AuthPrincipal::ServiceAccount(sa) => sa.namespace.as_deref(),
-        }
+        // Service accounts are global now, no namespace
+        None
     }
 
     #[allow(dead_code)]
@@ -244,9 +239,7 @@ impl RbacAuthz {
         let bound_roles: Vec<&Role> = applicable_bindings
             .iter()
             .filter_map(|binding| {
-                roles.iter().find(|role| {
-                    role.name == binding.role_ref.name && Self::role_matches_binding(role, binding)
-                })
+                roles.iter().find(|role| role.name == binding.role_name)
             })
             .collect();
 
@@ -264,24 +257,12 @@ impl RbacAuthz {
         role_bindings
             .iter()
             .filter(|binding| {
-                binding.subjects.iter().any(|subject| {
-                    subject.kind == principal.subject_type()
-                        && subject.name == principal.name()
-                        && subject.namespace == principal.namespace().map(String::from)
-                })
+                binding.principal_type == principal.subject_type()
+                    && binding.principal_name == principal.name()
             })
             .collect()
     }
 
-    #[allow(dead_code)]
-    fn role_matches_binding(role: &Role, binding: &RoleBinding) -> bool {
-        // Check if role namespace matches binding namespace context
-        match (&role.namespace, &binding.namespace) {
-            (None, _) => true, // Cluster role can be bound anywhere
-            (Some(role_ns), Some(binding_ns)) => role_ns == binding_ns,
-            (Some(_), None) => false, // Namespaced role can't be cluster-bound
-        }
-    }
 
     #[allow(dead_code)]
     fn role_grants_permission(role: &Role, context: &PermissionContext) -> bool {
@@ -322,7 +303,6 @@ pub fn get_admin_role() -> Role {
     Role {
         id: None,
         name: "admin".to_string(),
-        namespace: None, // Cluster-wide role
         rules: vec![Rule {
             api_groups: vec!["*".to_string()],
             resources: vec!["*".to_string()],

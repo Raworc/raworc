@@ -5,7 +5,6 @@ use std::sync::Arc;
 use sqlx::{query, Row};
 use uuid::Uuid;
 use tracing::info;
-use serde_json::json;
 
 impl AppState {
     // RBAC Operations
@@ -13,23 +12,21 @@ impl AppState {
     pub async fn create_service_account(
         &self,
         user: &str,
-        namespace: Option<String>,
+        _namespace: Option<String>,
         pass_hash: &str,
         description: Option<String>,
     ) -> Result<ServiceAccount, DatabaseError> {
         let id = Uuid::new_v4();
         let created_at = Utc::now().to_rfc3339();
-        let namespace_value = namespace.clone().unwrap_or_else(|| "default".to_string());
         
         query(
             r#"
-            INSERT INTO service_accounts (id, name, namespace, password_hash, description)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO service_accounts (id, name, password_hash, description)
+            VALUES ($1, $2, $3, $4)
             "#
         )
         .bind(id)
         .bind(user)
-        .bind(&namespace_value)
         .bind(pass_hash)
         .bind(&description)
         .execute(&*self.db)
@@ -38,7 +35,6 @@ impl AppState {
         Ok(ServiceAccount {
             id: Some(id),
             user: user.to_string(),
-            namespace,
             pass_hash: pass_hash.to_string(),
             description,
             created_at: created_at.clone(),
@@ -51,29 +47,21 @@ impl AppState {
     pub async fn get_service_account(
         &self,
         user: &str,
-        namespace: Option<&str>,
     ) -> Result<Option<ServiceAccount>, DatabaseError> {
-        let namespace_value = namespace.unwrap_or("default");
-        
         let row = query(
             r#"
-            SELECT id, name, namespace, password_hash, description, created_at, updated_at, active, last_login_at
+            SELECT id, name, password_hash, description, created_at, updated_at, active, last_login_at
             FROM service_accounts
-            WHERE name = $1 AND namespace = $2
+            WHERE name = $1
             "#
         )
         .bind(user)
-        .bind(namespace_value)
         .fetch_optional(&*self.db)
         .await?;
 
         Ok(row.map(|r| ServiceAccount {
             id: Some(r.get("id")),
             user: r.get("name"),
-            namespace: {
-                let ns: String = r.get("namespace");
-                if ns == "default" { None } else { Some(ns) }
-            },
             pass_hash: r.get("password_hash"),
             description: r.get("description"),
             created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
@@ -87,7 +75,7 @@ impl AppState {
     pub async fn get_all_service_accounts(&self) -> Result<Vec<ServiceAccount>, DatabaseError> {
         let rows = query(
             r#"
-            SELECT id, name, namespace, password_hash, description, created_at, updated_at, active, last_login_at
+            SELECT id, name, password_hash, description, created_at, updated_at, active, last_login_at
             FROM service_accounts
             ORDER BY created_at DESC
             "#
@@ -98,10 +86,6 @@ impl AppState {
         Ok(rows.into_iter().map(|r| ServiceAccount {
             id: Some(r.get("id")),
             user: r.get("name"),
-            namespace: {
-                let ns: String = r.get("namespace");
-                if ns == "default" { None } else { Some(ns) }
-            },
             pass_hash: r.get("password_hash"),
             description: r.get("description"),
             created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
@@ -115,18 +99,14 @@ impl AppState {
     pub async fn delete_service_account(
         &self,
         user: &str,
-        namespace: Option<&str>,
     ) -> Result<bool, DatabaseError> {
-        let namespace_value = namespace.unwrap_or("default");
-        
         let result = query(
             r#"
             DELETE FROM service_accounts
-            WHERE name = $1 AND namespace = $2
+            WHERE name = $1
             "#
         )
         .bind(user)
-        .bind(namespace_value)
         .execute(&*self.db)
         .await?;
 
@@ -152,21 +132,17 @@ impl AppState {
     pub async fn update_service_account_password(
         &self,
         user: &str,
-        namespace: Option<&str>,
         new_pass_hash: &str,
     ) -> Result<bool, DatabaseError> {
-        let namespace_value = namespace.unwrap_or("default");
-        
         let result = query(
             r#"
             UPDATE service_accounts
             SET password_hash = $1, updated_at = NOW()
-            WHERE name = $2 AND namespace = $3
+            WHERE name = $2
             "#
         )
         .bind(new_pass_hash)
         .bind(user)
-        .bind(namespace_value)
         .execute(&*self.db)
         .await?;
 
@@ -305,19 +281,15 @@ impl AppState {
     pub async fn update_last_login(
         &self,
         user: &str,
-        namespace: Option<&str>,
     ) -> Result<bool, DatabaseError> {
-        let namespace_value = namespace.unwrap_or("default");
-        
         let result = query(
             r#"
             UPDATE service_accounts
             SET last_login_at = NOW()
-            WHERE name = $1 AND namespace = $2
+            WHERE name = $1
             "#
         )
         .bind(user)
-        .bind(namespace_value)
         .execute(&*self.db)
         .await?;
 
@@ -327,19 +299,18 @@ impl AppState {
     // Role operations
     pub async fn create_role(&self, role: &Role) -> Result<Role, DatabaseError> {
         let id = Uuid::new_v4();
-        let namespace_value = role.namespace.clone().unwrap_or_else(|| "default".to_string());
         let rules_json = serde_json::to_value(&role.rules)?;
         
         query(
             r#"
-            INSERT INTO roles (id, name, namespace, rules)
+            INSERT INTO roles (id, name, rules, description)
             VALUES ($1, $2, $3, $4)
             "#
         )
         .bind(id)
         .bind(&role.name)
-        .bind(&namespace_value)
         .bind(&rules_json)
+        .bind(&role.description)
         .execute(&*self.db)
         .await?;
 
@@ -352,31 +323,23 @@ impl AppState {
     pub async fn get_role(
         &self,
         name: &str,
-        namespace: Option<&str>,
     ) -> Result<Option<Role>, DatabaseError> {
-        let namespace_value = namespace.unwrap_or("default");
-        
         let row = query(
             r#"
-            SELECT id, name, namespace, rules, created_at
+            SELECT id, name, rules, description, created_at
             FROM roles
-            WHERE name = $1 AND namespace = $2
+            WHERE name = $1
             "#
         )
         .bind(name)
-        .bind(namespace_value)
         .fetch_optional(&*self.db)
         .await?;
 
         Ok(row.map(|r| Role {
             id: Some(r.get("id")),
             name: r.get("name"),
-            namespace: {
-                let ns: String = r.get("namespace");
-                if ns == "default" { None } else { Some(ns) }
-            },
             rules: serde_json::from_value(r.get("rules")).unwrap_or_default(),
-            description: None,
+            description: r.get("description"),
             created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
         }))
     }
@@ -384,7 +347,7 @@ impl AppState {
     pub async fn get_all_roles(&self) -> Result<Vec<Role>, DatabaseError> {
         let rows = query(
             r#"
-            SELECT id, name, namespace, rules, created_at
+            SELECT id, name, rules, description, created_at
             FROM roles
             ORDER BY created_at DESC
             "#
@@ -395,12 +358,8 @@ impl AppState {
         Ok(rows.into_iter().map(|r| Role {
             id: Some(r.get("id")),
             name: r.get("name"),
-            namespace: {
-                let ns: String = r.get("namespace");
-                if ns == "default" { None } else { Some(ns) }
-            },
             rules: serde_json::from_value(r.get("rules")).unwrap_or_default(),
-            description: None,
+            description: r.get("description"),
             created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
         }).collect())
     }
@@ -408,18 +367,14 @@ impl AppState {
     pub async fn delete_role(
         &self,
         name: &str,
-        namespace: Option<&str>,
     ) -> Result<bool, DatabaseError> {
-        let namespace_value = namespace.unwrap_or("default");
-        
         let result = query(
             r#"
             DELETE FROM roles
-            WHERE name = $1 AND namespace = $2
+            WHERE name = $1
             "#
         )
         .bind(name)
-        .bind(namespace_value)
         .execute(&*self.db)
         .await?;
 
@@ -432,20 +387,24 @@ impl AppState {
         role_binding: &RoleBinding,
     ) -> Result<RoleBinding, DatabaseError> {
         let id = Uuid::new_v4();
-        let namespace_value = role_binding.namespace.clone().unwrap_or_else(|| "default".to_string());
-        let subjects_json = serde_json::to_value(&role_binding.subjects)?;
+        
+        // Convert SubjectType enum to string for database
+        let principal_type_str = match role_binding.principal_type {
+            SubjectType::ServiceAccount => "ServiceAccount",
+            SubjectType::Subject => "User",
+        };
         
         query(
             r#"
-            INSERT INTO role_bindings (id, name, namespace, role_name, subjects)
+            INSERT INTO role_bindings (id, role_name, principal_name, principal_type, namespace)
             VALUES ($1, $2, $3, $4, $5)
             "#
         )
         .bind(id)
-        .bind(&role_binding.name)
-        .bind(&namespace_value)
-        .bind(&role_binding.role_ref.name)
-        .bind(&subjects_json)
+        .bind(&role_binding.role_name)
+        .bind(&role_binding.principal_name)
+        .bind(principal_type_str)
+        .bind(&role_binding.namespace)
         .execute(&*self.db)
         .await?;
 
@@ -457,44 +416,44 @@ impl AppState {
 
     pub async fn get_role_binding(
         &self,
-        name: &str,
+        role_name: &str,
         namespace: Option<&str>,
     ) -> Result<Option<RoleBinding>, DatabaseError> {
-        let namespace_value = namespace.unwrap_or("default");
-        
         let row = query(
             r#"
-            SELECT id, name, namespace, role_name, subjects, created_at
+            SELECT id, role_name, principal_name, principal_type, namespace, created_at
             FROM role_bindings
-            WHERE name = $1 AND namespace = $2
+            WHERE role_name = $1 AND namespace IS NOT DISTINCT FROM $2
+            LIMIT 1
             "#
         )
-        .bind(name)
-        .bind(namespace_value)
+        .bind(role_name)
+        .bind(namespace)
         .fetch_optional(&*self.db)
         .await?;
 
-        Ok(row.map(|r| RoleBinding {
-            id: Some(r.get("id")),
-            name: r.get("name"),
-            namespace: {
-                let ns: String = r.get("namespace");
-                if ns == "default" { None } else { Some(ns) }
-            },
-            role_ref: crate::rbac::RoleRef {
-                kind: "Role".to_string(),
-                name: r.get("role_name"),
-                api_group: "rbac".to_string(),
-            },
-            subjects: serde_json::from_value(r.get("subjects")).unwrap_or_default(),
-            created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
+        Ok(row.map(|r| {
+            let principal_type_str: String = r.get("principal_type");
+            let principal_type = match principal_type_str.as_str() {
+                "ServiceAccount" => SubjectType::ServiceAccount,
+                _ => SubjectType::Subject,
+            };
+            
+            RoleBinding {
+                id: Some(r.get("id")),
+                role_name: r.get("role_name"),
+                principal_name: r.get("principal_name"),
+                principal_type,
+                namespace: r.get("namespace"),
+                created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
+            }
         }))
     }
 
     pub async fn get_all_role_bindings(&self) -> Result<Vec<RoleBinding>, DatabaseError> {
         let rows = query(
             r#"
-            SELECT id, name, namespace, role_name, subjects, created_at
+            SELECT id, role_name, principal_name, principal_type, namespace, created_at
             FROM role_bindings
             ORDER BY created_at DESC
             "#
@@ -502,20 +461,21 @@ impl AppState {
         .fetch_all(&*self.db)
         .await?;
 
-        Ok(rows.into_iter().map(|r| RoleBinding {
-            id: Some(r.get("id")),
-            name: r.get("name"),
-            namespace: {
-                let ns: String = r.get("namespace");
-                if ns == "default" { None } else { Some(ns) }
-            },
-            role_ref: crate::rbac::RoleRef {
-                kind: "Role".to_string(),
-                name: r.get("role_name"),
-                api_group: "rbac".to_string(),
-            },
-            subjects: serde_json::from_value(r.get("subjects")).unwrap_or_default(),
-            created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
+        Ok(rows.into_iter().map(|r| {
+            let principal_type_str: String = r.get("principal_type");
+            let principal_type = match principal_type_str.as_str() {
+                "ServiceAccount" => SubjectType::ServiceAccount,
+                _ => SubjectType::Subject,
+            };
+            
+            RoleBinding {
+                id: Some(r.get("id")),
+                role_name: r.get("role_name"),
+                principal_name: r.get("principal_name"),
+                principal_type,
+                namespace: r.get("namespace"),
+                created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
+            }
         }).collect())
     }
 
@@ -526,56 +486,56 @@ impl AppState {
         subject_type: SubjectType,
         namespace: Option<&str>,
     ) -> Result<Vec<RoleBinding>, DatabaseError> {
-        let subject_kind = match subject_type {
-            SubjectType::Subject => "Subject",
+        let principal_type_str = match subject_type {
+            SubjectType::Subject => "User",
             SubjectType::ServiceAccount => "ServiceAccount",
         };
-        
-        let subject_filter = json!([{
-            "name": subject_name,
-            "kind": subject_kind
-        }]);
         
         let rows = if let Some(ns) = namespace {
             query(
                 r#"
-                SELECT id, name, namespace, role_name, subjects, created_at
+                SELECT id, role_name, principal_name, principal_type, namespace, created_at
                 FROM role_bindings
-                WHERE (namespace = $1 OR namespace = 'default')
-                AND subjects @> $2::jsonb
+                WHERE principal_name = $1
+                AND principal_type = $2
+                AND (namespace = $3 OR namespace IS NULL)
                 "#
             )
+            .bind(subject_name)
+            .bind(principal_type_str)
             .bind(ns)
-            .bind(&subject_filter)
             .fetch_all(&*self.db)
             .await?
         } else {
             query(
                 r#"
-                SELECT id, name, namespace, role_name, subjects, created_at
+                SELECT id, role_name, principal_name, principal_type, namespace, created_at
                 FROM role_bindings
-                WHERE subjects @> $1::jsonb
+                WHERE principal_name = $1
+                AND principal_type = $2
                 "#
             )
-            .bind(&subject_filter)
+            .bind(subject_name)
+            .bind(principal_type_str)
             .fetch_all(&*self.db)
             .await?
         };
 
-        Ok(rows.into_iter().map(|r| RoleBinding {
-            id: Some(r.get("id")),
-            name: r.get("name"),
-            namespace: {
-                let ns: String = r.get("namespace");
-                if ns == "default" { None } else { Some(ns) }
-            },
-            role_ref: crate::rbac::RoleRef {
-                kind: "Role".to_string(),
-                name: r.get("role_name"),
-                api_group: "rbac".to_string(),
-            },
-            subjects: serde_json::from_value(r.get("subjects")).unwrap_or_default(),
-            created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
+        Ok(rows.into_iter().map(|r| {
+            let principal_type_str: String = r.get("principal_type");
+            let principal_type = match principal_type_str.as_str() {
+                "ServiceAccount" => SubjectType::ServiceAccount,
+                _ => SubjectType::Subject,
+            };
+            
+            RoleBinding {
+                id: Some(r.get("id")),
+                role_name: r.get("role_name"),
+                principal_name: r.get("principal_name"),
+                principal_type,
+                namespace: r.get("namespace"),
+                created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at").to_rfc3339(),
+            }
         }).collect())
     }
 
@@ -584,16 +544,14 @@ impl AppState {
         name: &str,
         namespace: Option<&str>,
     ) -> Result<bool, DatabaseError> {
-        let namespace_value = namespace.unwrap_or("default");
-        
         let result = query(
             r#"
             DELETE FROM role_bindings
-            WHERE name = $1 AND namespace = $2
+            WHERE role_name = $1 AND namespace IS NOT DISTINCT FROM $2
             "#
         )
         .bind(name)
-        .bind(namespace_value)
+        .bind(namespace)
         .execute(&*self.db)
         .await?;
 
@@ -630,7 +588,7 @@ pub async fn initialize_app_state(
 
 // Database seeding for RBAC - only seeds if service_accounts table is empty
 pub async fn seed_rbac_system(app_state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
-    use crate::rbac::{get_admin_role, RoleBinding, RoleBindingSubject, RoleRef, SubjectType};
+    use crate::rbac::{get_admin_role, RoleBinding, SubjectType};
     use bcrypt::{hash, DEFAULT_COST};
     use chrono::Utc;
 
@@ -663,18 +621,10 @@ pub async fn seed_rbac_system(app_state: &AppState) -> Result<(), Box<dyn std::e
     // Create admin role binding
     let admin_role_binding = RoleBinding {
         id: None,
-        name: "admin-binding".to_string(),
-        namespace: None,
-        role_ref: RoleRef {
-            kind: "Role".to_string(),
-            name: "admin".to_string(),
-            api_group: "rbac".to_string(),
-        },
-        subjects: vec![RoleBindingSubject {
-            kind: SubjectType::ServiceAccount,
-            name: "admin".to_string(),
-            namespace: None,
-        }],
+        role_name: "admin".to_string(),
+        principal_name: "admin".to_string(),
+        principal_type: SubjectType::ServiceAccount,
+        namespace: None, // Global access
         created_at: Utc::now().to_rfc3339(),
     };
 

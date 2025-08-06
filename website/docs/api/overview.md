@@ -25,6 +25,10 @@ When the Raworc server is running, you can access interactive API documentation:
 
 All API endpoints (except `/health`, `/version`, and `/auth/internal`) require authentication using a JWT bearer token.
 
+## Organizations (Namespaces)
+
+Raworc uses namespaces to represent organizations. Resources (agents, sessions) belong to organizations, while users and roles are global. Access is controlled through role bindings that specify which users have which roles in which organizations.
+
 ### Obtaining a Token
 
 ```bash
@@ -193,8 +197,9 @@ GET /api/v0/agents?page=1&limit=20
 
 Some endpoints support filtering:
 ```
+GET /api/v0/sessions?namespace=acme-corp  # Sessions for Acme Corp
 GET /api/v0/sessions?lifecycle_state=STARTED
-GET /api/v0/sessions?created_by=john.doe
+GET /api/v0/agents?namespace=tech-startup  # Agents for Tech Startup
 GET /api/v0/agents?active=true&model=gpt-4  # Coming soon
 ```
 
@@ -204,8 +209,8 @@ The Raworc CLI provides convenient access to the API:
 
 ```bash
 # In interactive mode
-raworc> /api agents
-raworc> /api POST agents {"name":"helper","model":"gpt-4"}
+raworc> /api agents?namespace=acme-corp
+raworc> /api POST agents {"name":"helper","namespace":"acme-corp","model":"gpt-4"}
 raworc> /api DELETE agents/helper
 ```
 

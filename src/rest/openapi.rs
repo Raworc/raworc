@@ -8,7 +8,7 @@ use crate::rest::{
     handlers::{
         service_accounts::{CreateServiceAccountRequest, ServiceAccountResponse, UpdatePasswordRequest, UpdateServiceAccountRequest},
         roles::{CreateRoleRequest, RoleResponse, RuleRequest, RuleResponse},
-        role_bindings::{CreateRoleBindingRequest, RoleBindingResponse, RoleRefRequest, SubjectRequest},
+        role_bindings::{CreateRoleBindingRequest, RoleBindingResponse},
         agents::AgentResponse,
         sessions::{SessionResponse, SessionAgentInfo},
     },
@@ -67,8 +67,6 @@ use crate::rbac::SubjectType;
             RuleResponse,
             CreateRoleBindingRequest,
             RoleBindingResponse,
-            RoleRefRequest,
-            SubjectRequest,
             SubjectType,
             ErrorResponse,
             crate::rest::error::ErrorDetails,

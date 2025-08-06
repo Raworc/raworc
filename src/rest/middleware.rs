@@ -55,7 +55,7 @@ pub async fn auth_middleware(
     let principal = match claims.sub_type {
         SubjectType::ServiceAccount => {
             let service_account = state
-                .get_service_account(&claims.sub, claims.namespace.as_deref())
+                .get_service_account(&claims.sub)
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
                 .ok_or(StatusCode::UNAUTHORIZED)?;

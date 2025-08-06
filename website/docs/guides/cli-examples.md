@@ -33,11 +33,11 @@ raworc> /api GET role-bindings
 # Create a role
 raworc> /api POST roles {"name":"viewer","rules":[{"api_groups":["api"],"resources":["*"],"verbs":["get","list"]}]}
 
-# Create a service account
-raworc> /api POST service-accounts {"user":"bot-user","pass":"secure123","description":"Automation bot"}
+# Create a service account (global - not tied to organization)
+raworc> /api POST service-accounts {"user":"bot-user","pass":"secure123","description":"Cross-org automation bot"}
 
-# Create a role binding
-raworc> /api POST role-bindings {"role_name":"viewer","principal_name":"bot-user","principal_type":"ServiceAccount"}
+# Create a role binding (grant bot-user viewer role in acme-corp)
+raworc> /api POST role-bindings {"role_name":"viewer","principal_name":"bot-user","principal_type":"ServiceAccount","namespace":"acme-corp"}
 ```
 
 ### PUT Requests
@@ -60,14 +60,17 @@ raworc> /api DELETE role-bindings/some-binding-id
 
 ### Agent Management
 ```bash
-# List all agents
+# List agents from accessible organizations
 raworc> /api agents
+
+# List agents from specific organization
+raworc> /api agents?namespace=acme-corp
 
 # Get specific agent by name or ID
 raworc> /api agents/assistant
 
-# Create a new agent
-raworc> /api POST agents {"name":"code-assistant","instructions":"You are a helpful coding assistant","model":"gpt-4","description":"Helps with code reviews and debugging"}
+# Create a new agent for an organization
+raworc> /api POST agents {"name":"code-assistant","namespace":"tech-startup","instructions":"You are a helpful coding assistant","model":"gpt-4","description":"Helps with code reviews and debugging"}
 
 # Update an agent
 raworc> /api PUT agents/code-assistant {"instructions":"You are an expert code reviewer focused on security","model":"gpt-4-turbo"}
@@ -76,20 +79,23 @@ raworc> /api PUT agents/code-assistant {"instructions":"You are an expert code r
 raworc> /api DELETE agents/code-assistant
 ```
 
-### Session Management
+### Session Management  
 ```bash
-# List all sessions
+# List sessions from accessible organizations
 raworc> /api sessions
 
+# List sessions from specific organization
+raworc> /api sessions?namespace=acme-corp
+
 # List sessions with filters
-raworc> /api sessions?lifecycle_state=STARTED
+raworc> /api sessions?namespace=tech-startup&lifecycle_state=STARTED
 raworc> /api sessions?created_by=john.doe
 
 # Get specific session
 raworc> /api sessions/61549530-3095-4cbf-b379-cd32416f626d
 
-# Create a new session
-raworc> /api POST sessions {"name":"data-analysis","starting_prompt":"Analyze Q4 sales data","agent_ids":["550e8400-e29b-41d4-a716-446655440000"],"waiting_timeout_seconds":300}
+# Create a new session for an organization
+raworc> /api POST sessions {"name":"data-analysis","namespace":"acme-corp","starting_prompt":"Analyze Q4 sales data","agent_ids":["550e8400-e29b-41d4-a716-446655440000"],"waiting_timeout_seconds":300}
 
 # Update session details
 raworc> /api PUT sessions/61549530-3095-4cbf-b379-cd32416f626d {"name":"Q4 Analysis - Updated","metadata":{"priority":"high"}}
