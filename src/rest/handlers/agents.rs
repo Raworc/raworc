@@ -1,5 +1,6 @@
 use axum::{
     extract::{Path, Query, State},
+    Extension,
     Json,
 };
 use serde::Serialize;
@@ -9,6 +10,8 @@ use utoipa::ToSchema;
 
 use crate::models::{Agent, AppState, CreateAgentRequest, UpdateAgentRequest};
 use crate::rest::error::{ApiError, ApiResult};
+use crate::rest::middleware::AuthContext;
+use crate::rest::rbac_enforcement::{check_api_permission, permissions, get_user_namespace};
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AgentResponse {
@@ -53,10 +56,25 @@ pub struct ListAgentsQuery {
 }
 
 pub async fn list_agents(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Query(query): Query<ListAgentsQuery>,
 ) -> ApiResult<Json<Vec<AgentResponse>>> {
-    let agents = Agent::find_all(&state.db, query.namespace.as_deref())
+    // Determine target namespace
+    let user_namespace = get_user_namespace(&auth);
+    let target_namespace = query.namespace.as_deref()
+        .or(user_namespace.as_deref())
+        .unwrap_or("default");
+
+    // Check permission for listing agents in the namespace
+    check_api_permission(&auth, &state, &permissions::AGENT_LIST, Some(target_namespace))
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
+
+    let agents = Agent::find_all(&state.db, Some(target_namespace))
         .await
         .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to list agents: {}", e)))?;
     
@@ -65,6 +83,7 @@ pub async fn list_agents(
 }
 
 pub async fn get_agent(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<AgentResponse>> {
@@ -72,20 +91,42 @@ pub async fn get_agent(
     let agent = if let Ok(uuid) = Uuid::parse_str(&id) {
         Agent::find_by_id(&state.db, uuid).await
     } else {
-        // For name lookups, we need a namespace - default to "default"
-        // In a real implementation, you'd get this from the auth context
-        Agent::find_by_name(&state.db, &id, "default").await
+        // For name lookups, use user's namespace from context
+        let namespace = get_user_namespace(&auth).unwrap_or_else(|| "default".to_string());
+        Agent::find_by_name(&state.db, &id, &namespace).await
     }
     .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to fetch agent: {}", e)))?
     .ok_or(ApiError::NotFound("Agent not found".to_string()))?;
+
+    // Check permission for the agent's namespace
+    check_api_permission(&auth, &state, &permissions::AGENT_GET, Some(&agent.namespace))
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
 
     Ok(Json(agent.into()))
 }
 
 pub async fn create_agent(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
-    Json(req): Json<CreateAgentRequest>,
+    Json(mut req): Json<CreateAgentRequest>,
 ) -> ApiResult<Json<AgentResponse>> {
+    // Use user's namespace if not specified
+    if req.namespace.is_empty() {
+        req.namespace = get_user_namespace(&auth).unwrap_or_else(|| "default".to_string());
+    }
+
+    // Check permission for creating agents in the namespace
+    check_api_permission(&auth, &state, &permissions::AGENT_CREATE, Some(&req.namespace))
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
+
     // Check if agent with same name already exists in the namespace
     if let Ok(Some(_)) = Agent::find_by_name(&state.db, &req.name, &req.namespace).await {
         return Err(ApiError::Conflict(format!("Agent '{}' already exists in namespace '{}'", req.name, req.namespace)));
@@ -99,6 +140,7 @@ pub async fn create_agent(
 }
 
 pub async fn update_agent(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
     Json(req): Json<UpdateAgentRequest>,
@@ -111,6 +153,14 @@ pub async fn update_agent(
         .await
         .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to fetch agent: {}", e)))?
         .ok_or(ApiError::NotFound("Agent not found".to_string()))?;
+
+    // Check permission for updating agents in the namespace
+    check_api_permission(&auth, &state, &permissions::AGENT_UPDATE, Some(&existing_agent.namespace))
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     
     // If updating name, check if new name already exists in the same namespace
     if let Some(ref new_name) = req.name {
@@ -130,11 +180,26 @@ pub async fn update_agent(
 }
 
 pub async fn delete_agent(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<()> {
     let uuid = Uuid::parse_str(&id)
         .map_err(|_| ApiError::BadRequest("Invalid agent ID format".to_string()))?;
+
+    // Get the agent to check its namespace
+    let agent = Agent::find_by_id(&state.db, uuid)
+        .await
+        .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to fetch agent: {}", e)))?
+        .ok_or(ApiError::NotFound("Agent not found".to_string()))?;
+
+    // Check permission for deleting agents in the namespace
+    check_api_permission(&auth, &state, &permissions::AGENT_DELETE, Some(&agent.namespace))
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
 
     let deleted = Agent::delete(&state.db, uuid)
         .await

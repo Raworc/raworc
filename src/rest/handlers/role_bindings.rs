@@ -1,5 +1,6 @@
 use axum::{
     extract::{Path, State},
+    Extension,
     Json,
 };
 use chrono::Utc;
@@ -10,6 +11,8 @@ use utoipa::ToSchema;
 use crate::models::AppState;
 use crate::rbac::{RoleBinding, SubjectType};
 use crate::rest::error::{ApiError, ApiResult};
+use crate::rest::middleware::AuthContext;
+use crate::rest::rbac_enforcement::{check_api_permission, permissions};
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateRoleBindingRequest {
@@ -46,17 +49,34 @@ impl From<RoleBinding> for RoleBindingResponse {
 }
 
 pub async fn list_role_bindings(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<Vec<RoleBindingResponse>>> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::ROLE_BINDING_LIST, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
+
     let bindings = state.get_all_role_bindings().await?;
     let response: Vec<RoleBindingResponse> = bindings.into_iter().map(Into::into).collect();
     Ok(Json(response))
 }
 
 pub async fn get_role_binding(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<RoleBindingResponse>> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::ROLE_BINDING_GET, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     // Try to parse as UUID first, otherwise treat as name
     let binding = if let Ok(uuid) = uuid::Uuid::parse_str(&id) {
         state.get_all_role_bindings().await?
@@ -71,9 +91,18 @@ pub async fn get_role_binding(
 }
 
 pub async fn create_role_binding(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Json(req): Json<CreateRoleBindingRequest>,
 ) -> ApiResult<Json<RoleBindingResponse>> {
+    // Check permission - need extra permissions for global bindings
+    let target_namespace = req.namespace.as_deref();
+    check_api_permission(&auth, &state, &permissions::ROLE_BINDING_CREATE, target_namespace)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     let role_binding = RoleBinding {
         id: None,
         role_name: req.role_name,
@@ -88,9 +117,17 @@ pub async fn create_role_binding(
 }
 
 pub async fn delete_role_binding(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<()> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::ROLE_BINDING_DELETE, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     let deleted = if uuid::Uuid::parse_str(&id).is_ok() {
         // For UUID, we need to find the binding first
         if let Some(binding) = state.get_all_role_bindings().await?
