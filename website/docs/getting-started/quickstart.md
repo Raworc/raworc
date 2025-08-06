@@ -40,14 +40,18 @@ First, ensure PostgreSQL is running and create a database:
 CREATE DATABASE raworc;
 ```
 
-Then set the database URL and run migrations:
+Then set the database URL and run the initial migration:
 
 ```bash
 export DATABASE_URL="postgresql://user:password@localhost:5432/raworc"
-psql $DATABASE_URL < migrations/001_create_rbac_tables.sql
-psql $DATABASE_URL < migrations/002_create_agents_table.sql
-psql $DATABASE_URL < migrations/003_create_sessions_table.sql
+psql $DATABASE_URL < migrations/20250806000000_initial_schema.sql
 ```
+
+This creates all tables with proper namespace architecture where:
+- Namespaces represent organizations (like company departments or customer accounts)
+- Resources (agents, sessions) belong to organizations
+- Service accounts and roles are global (can work across organizations)
+- Role bindings specify WHERE roles apply (specific organization or globally)
 
 ## Starting the Server
 
@@ -109,6 +113,8 @@ For a new installation, use the default admin credentials:
 
 ⚠️ **Security Warning**: Change these default credentials immediately after first login!
 
+The default admin account has global access to all organizations.
+
 ## Using the CLI
 
 Once authenticated, connect to the server:
@@ -137,8 +143,17 @@ Try some commands:
 # Check API version
 raworc> /api version
 
-# List service accounts
+# List global service accounts
 raworc> /api service-accounts
+
+# Create an agent in the default organization
+raworc> /api POST agents {"name":"helper","namespace":"default","model":"gpt-4","instructions":"You are a helpful assistant"}
+
+# List agents in your accessible organizations
+raworc> /api agents
+
+# Grant a user access to an organization
+raworc> /api POST role-bindings {"role_name":"developer","principal_name":"alice","principal_type":"ServiceAccount","namespace":"acme-corp"}
 
 # Get help
 raworc> /help
@@ -147,10 +162,12 @@ raworc> /help
 ## Next Steps
 
 - 📖 Read the [Architecture Overview](/docs/concepts/architecture) to understand how Raworc works
+- 🏢 Learn about [Organization-based Namespaces](/docs/concepts/namespace-architecture)
 - 🔧 Configure Raworc using [environment variables](/docs/admin/configuration)
-- 🔐 Set up proper [RBAC permissions](/docs/admin/rbac)
+- 🔐 Set up [RBAC and Organizations](/docs/admin/rbac-namespaces)
 - 🤖 Learn how to [deploy agents](/docs/guides/managing-agents)
 - 📡 Explore the [REST API](/docs/api/rest-api)
+- 🏭 See [Organization Workflow Examples](/docs/guides/organization-workflows)
 
 ## Troubleshooting
 

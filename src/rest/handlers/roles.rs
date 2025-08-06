@@ -14,8 +14,8 @@ use crate::rest::error::{ApiError, ApiResult};
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateRoleRequest {
     pub name: String,
-    #[serde(default)]
-    pub namespace: Option<String>,
+    // #[serde(default)]
+    // pub namespace: Option<String>, // Roles are global now
     pub rules: Vec<RuleRequest>,
     #[serde(default)]
     pub description: Option<String>,
@@ -34,7 +34,7 @@ pub struct RuleRequest {
 pub struct RoleResponse {
     pub id: String,
     pub name: String,
-    pub namespace: Option<String>,
+    // pub namespace: Option<String>, // Roles are global now
     pub rules: Vec<RuleResponse>,
     pub description: Option<String>,
     pub created_at: String,
@@ -54,7 +54,7 @@ impl From<Role> for RoleResponse {
         Self {
             id: role.id.map(|id| id.to_string()).unwrap_or_default(),
             name: role.name,
-            namespace: role.namespace,
+            // namespace: None, // Roles are global now - field removed from struct
             rules: role.rules.into_iter().map(|r| RuleResponse {
                 api_groups: r.api_groups,
                 resources: r.resources,
@@ -85,7 +85,7 @@ pub async fn get_role(
             .into_iter()
             .find(|r| r.id == Some(uuid))
     } else {
-        state.get_role(&id, None).await?
+        state.get_role(&id).await?
     };
     
     let role = role.ok_or(ApiError::NotFound("Role not found".to_string()))?;
@@ -97,14 +97,14 @@ pub async fn create_role(
     Json(req): Json<CreateRoleRequest>,
 ) -> ApiResult<Json<RoleResponse>> {
     // Check if already exists
-    if let Ok(Some(_)) = state.get_role(&req.name, req.namespace.as_deref()).await {
+    if let Ok(Some(_)) = state.get_role(&req.name).await {
         return Err(ApiError::Conflict("Role already exists".to_string()));
     }
     
     let role = Role {
         id: None,
         name: req.name,
-        namespace: req.namespace,
+        // namespace: req.namespace, // Roles are global now
         rules: req.rules.into_iter().map(|r| Rule {
             api_groups: r.api_groups,
             resources: r.resources,
@@ -128,12 +128,12 @@ pub async fn delete_role(
         if let Some(role) = state.get_all_roles().await?
             .into_iter()
             .find(|r| r.id == Some(uuid::Uuid::parse_str(&id).unwrap())) {
-            state.delete_role(&role.name, role.namespace.as_deref()).await?
+            state.delete_role(&role.name).await?
         } else {
             false
         }
     } else {
-        state.delete_role(&id, None).await?
+        state.delete_role(&id).await?
     };
     
     if !deleted {

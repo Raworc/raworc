@@ -16,6 +16,7 @@ pub struct LoginRequest {
     pub user: String,
     pub pass: String,
     #[serde(default)]
+    #[allow(dead_code)]
     pub namespace: Option<String>,
 }
 
@@ -48,14 +49,13 @@ pub async fn login(
     let service_account = authenticate_service_account(
         &state,
         &req.user,
-        req.namespace.as_deref(),
         &req.pass,
     )
     .await?
     .ok_or(ApiError::Unauthorized)?;
 
     // Update last login timestamp
-    let _ = state.update_last_login(&req.user, req.namespace.as_deref()).await;
+    let _ = state.update_last_login(&req.user).await;
 
     let token_response = create_service_account_jwt(&service_account, &state.jwt_secret, 24)?;
     
@@ -78,8 +78,8 @@ pub async fn me(
     use crate::rbac::AuthPrincipal;
     
     let (user, namespace, principal_type) = match &auth.principal {
-        AuthPrincipal::Subject(s) => (&s.name, None, "Subject"),
-        AuthPrincipal::ServiceAccount(sa) => (&sa.user, sa.namespace.as_ref(), "ServiceAccount"),
+        AuthPrincipal::Subject(s) => (&s.name, None::<String>, "Subject"),
+        AuthPrincipal::ServiceAccount(sa) => (&sa.user, None::<String>, "ServiceAccount"),
     };
     
     Ok(Json(serde_json::json!({

@@ -26,7 +26,7 @@ pub fn create_service_account_jwt(
     let claims = RbacClaims {
         sub: service_account.user.clone(),
         sub_type: SubjectType::ServiceAccount,
-        namespace: service_account.namespace.clone(),
+        namespace: None, // Service accounts are global now
         exp: exp.timestamp() as usize,
         iat: Utc::now().timestamp() as usize,
         iss: "raworc-rbac".to_string(),
@@ -97,7 +97,7 @@ pub async fn check_permission(
         .get_role_bindings_for_subject(
             principal.name(),
             principal.subject_type(),
-            principal.namespace(),
+            None,
         )
         .await?;
 
@@ -111,10 +111,9 @@ pub async fn check_permission(
 pub async fn authenticate_service_account(
     app_state: &AppState,
     user: &str,
-    namespace: Option<&str>,
     pass: &str,
 ) -> Result<Option<ServiceAccount>, DatabaseError> {
-    if let Some(service_account) = app_state.get_service_account(user, namespace).await? {
+    if let Some(service_account) = app_state.get_service_account(user).await? {
         if service_account.active {
             let is_valid = bcrypt::verify(pass, &service_account.pass_hash).unwrap_or(false);
             if is_valid {
@@ -142,7 +141,7 @@ pub async fn get_permissions_for_principal(
         .get_role_bindings_for_subject(
             principal.name(),
             principal.subject_type(),
-            principal.namespace(),
+            None,
         )
         .await?;
 
@@ -150,7 +149,7 @@ pub async fn get_permissions_for_principal(
     let mut permissions = Vec::new();
     
     for binding in &role_bindings {
-        if let Some(role) = roles.iter().find(|r| r.name == binding.role_ref.name) {
+        if let Some(role) = roles.iter().find(|r| r.name == binding.role_name) {
             for rule in &role.rules {
                 for api_group in &rule.api_groups {
                     for resource in &rule.resources {

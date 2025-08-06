@@ -8,6 +8,7 @@ use utoipa::ToSchema;
 pub struct Agent {
     pub id: Uuid,
     pub name: String,
+    pub namespace: String, // Organization that owns this agent
     pub description: Option<String>,
     pub instructions: String,
     pub model: String,
@@ -23,6 +24,8 @@ pub struct Agent {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateAgentRequest {
     pub name: String,
+    #[serde(default = "default_namespace")]
+    pub namespace: String, // Organization for this agent
     pub description: Option<String>,
     pub instructions: String,
     pub model: String,
@@ -53,27 +56,45 @@ fn default_json_array() -> serde_json::Value {
     serde_json::json!([])
 }
 
+fn default_namespace() -> String {
+    "default".to_string()
+}
+
 // Database queries
 impl Agent {
-    pub async fn find_all(pool: &sqlx::PgPool) -> Result<Vec<Agent>, sqlx::Error> {
-        sqlx::query_as::<_, Agent>(
-            r#"
-            SELECT id, name, description, instructions, model, 
-                   tools, routes, guardrails, knowledge_bases,
-                   active, created_at, updated_at
-            FROM agents
-            WHERE active = true
-            ORDER BY name ASC
-            "#
-        )
-        .fetch_all(pool)
-        .await
+    pub async fn find_all(pool: &sqlx::PgPool, namespace: Option<&str>) -> Result<Vec<Agent>, sqlx::Error> {
+        let query = if let Some(ns) = namespace {
+            sqlx::query_as::<_, Agent>(
+                r#"
+                SELECT id, name, namespace, description, instructions, model, 
+                       tools, routes, guardrails, knowledge_bases,
+                       active, created_at, updated_at
+                FROM agents
+                WHERE active = true AND namespace = $1
+                ORDER BY name ASC
+                "#
+            )
+            .bind(ns)
+        } else {
+            sqlx::query_as::<_, Agent>(
+                r#"
+                SELECT id, name, namespace, description, instructions, model, 
+                       tools, routes, guardrails, knowledge_bases,
+                       active, created_at, updated_at
+                FROM agents
+                WHERE active = true
+                ORDER BY name ASC
+                "#
+            )
+        };
+        
+        query.fetch_all(pool).await
     }
 
     pub async fn find_by_id(pool: &sqlx::PgPool, id: Uuid) -> Result<Option<Agent>, sqlx::Error> {
         sqlx::query_as::<_, Agent>(
             r#"
-            SELECT id, name, description, instructions, model,
+            SELECT id, name, namespace, description, instructions, model,
                    tools, routes, guardrails, knowledge_bases,
                    active, created_at, updated_at
             FROM agents
@@ -85,17 +106,18 @@ impl Agent {
         .await
     }
 
-    pub async fn find_by_name(pool: &sqlx::PgPool, name: &str) -> Result<Option<Agent>, sqlx::Error> {
+    pub async fn find_by_name(pool: &sqlx::PgPool, name: &str, namespace: &str) -> Result<Option<Agent>, sqlx::Error> {
         sqlx::query_as::<_, Agent>(
             r#"
-            SELECT id, name, description, instructions, model,
+            SELECT id, name, namespace, description, instructions, model,
                    tools, routes, guardrails, knowledge_bases,
                    active, created_at, updated_at
             FROM agents
-            WHERE name = $1
+            WHERE name = $1 AND namespace = $2
             "#
         )
         .bind(name)
+        .bind(namespace)
         .fetch_optional(pool)
         .await
     }
@@ -103,14 +125,15 @@ impl Agent {
     pub async fn create(pool: &sqlx::PgPool, req: CreateAgentRequest) -> Result<Agent, sqlx::Error> {
         sqlx::query_as::<_, Agent>(
             r#"
-            INSERT INTO agents (name, description, instructions, model, tools, routes, guardrails, knowledge_bases)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id, name, description, instructions, model,
+            INSERT INTO agents (name, namespace, description, instructions, model, tools, routes, guardrails, knowledge_bases)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING id, name, namespace, description, instructions, model,
                       tools, routes, guardrails, knowledge_bases,
                       active, created_at, updated_at
             "#
         )
         .bind(req.name)
+        .bind(req.namespace)
         .bind(req.description)
         .bind(req.instructions)
         .bind(req.model)
@@ -137,7 +160,7 @@ impl Agent {
                 knowledge_bases = COALESCE($9, knowledge_bases),
                 active = COALESCE($10, active)
             WHERE id = $1
-            RETURNING id, name, description, instructions, model,
+            RETURNING id, name, namespace, description, instructions, model,
                       tools, routes, guardrails, knowledge_bases,
                       active, created_at, updated_at
             "#

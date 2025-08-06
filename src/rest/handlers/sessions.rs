@@ -15,6 +15,7 @@ use crate::rest::middleware::AuthContext;
 pub struct SessionResponse {
     pub id: String,
     pub name: String,
+    pub namespace: String,
     pub starting_prompt: String,
     pub lifecycle_state: SessionLifecycle,
     pub waiting_timeout_seconds: Option<i32>,
@@ -40,6 +41,7 @@ pub struct SessionAgentInfo {
 
 #[derive(Debug, Deserialize)]
 pub struct ListSessionsQuery {
+    pub namespace: Option<String>,
     pub created_by: Option<String>,
     pub lifecycle_state: Option<SessionLifecycle>,
 }
@@ -60,6 +62,7 @@ impl SessionResponse {
         Ok(Self {
             id: session.id.to_string(),
             name: session.name,
+            namespace: session.namespace,
             starting_prompt: session.starting_prompt,
             lifecycle_state: session.lifecycle_state,
             waiting_timeout_seconds: session.waiting_timeout_seconds,
@@ -113,7 +116,7 @@ pub async fn list_sessions(
         Some(username.as_str())
     };
 
-    let mut sessions = Session::find_all(&state.db, filter_user)
+    let mut sessions = Session::find_all(&state.db, query.namespace.as_deref(), filter_user)
         .await
         .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to list sessions: {}", e)))?;
 

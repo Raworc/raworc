@@ -8,74 +8,38 @@ use std::sync::Arc;
 use utoipa::ToSchema;
 
 use crate::models::AppState;
-use crate::rbac::{RoleBinding, RoleBindingSubject, RoleRef, SubjectType};
+use crate::rbac::{RoleBinding, SubjectType};
 use crate::rest::error::{ApiError, ApiResult};
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateRoleBindingRequest {
-    pub name: String,
+    pub role_name: String,
+    pub principal_name: String,
+    pub principal_type: SubjectType,
     #[serde(default)]
-    pub namespace: Option<String>,
-    pub role_ref: RoleRefRequest,
-    pub subjects: Vec<SubjectRequest>,
+    pub namespace: Option<String>, // NULL = global, String = specific organization
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct RoleRefRequest {
-    pub kind: String,
-    pub name: String,
-    pub api_group: String,
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct SubjectRequest {
-    pub kind: SubjectType,
-    pub name: String,
-    #[serde(default)]
-    pub namespace: Option<String>,
-}
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RoleBindingResponse {
     pub id: String,
-    pub name: String,
-    pub namespace: Option<String>,
-    pub role_ref: RoleRefResponse,
-    pub subjects: Vec<SubjectResponse>,
+    pub role_name: String,
+    pub principal_name: String,
+    pub principal_type: SubjectType,
+    pub namespace: Option<String>, // NULL = global access, String = specific organization
     pub created_at: String,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
-pub struct RoleRefResponse {
-    pub kind: String,
-    pub name: String,
-    pub api_group: String,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct SubjectResponse {
-    pub kind: SubjectType,
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub namespace: Option<String>,
-}
 
 impl From<RoleBinding> for RoleBindingResponse {
     fn from(rb: RoleBinding) -> Self {
         Self {
             id: rb.id.map(|id| id.to_string()).unwrap_or_default(),
-            name: rb.name,
+            role_name: rb.role_name,
+            principal_name: rb.principal_name,
+            principal_type: rb.principal_type,
             namespace: rb.namespace,
-            role_ref: RoleRefResponse {
-                kind: rb.role_ref.kind,
-                name: rb.role_ref.name,
-                api_group: rb.role_ref.api_group,
-            },
-            subjects: rb.subjects.into_iter().map(|s| SubjectResponse {
-                kind: s.kind,
-                name: s.name,
-                namespace: s.namespace,
-            }).collect(),
             created_at: rb.created_at,
         }
     }
@@ -110,25 +74,12 @@ pub async fn create_role_binding(
     State(state): State<Arc<AppState>>,
     Json(req): Json<CreateRoleBindingRequest>,
 ) -> ApiResult<Json<RoleBindingResponse>> {
-    // Check if already exists
-    if let Ok(Some(_)) = state.get_role_binding(&req.name, req.namespace.as_deref()).await {
-        return Err(ApiError::Conflict("Role binding already exists".to_string()));
-    }
-    
     let role_binding = RoleBinding {
         id: None,
-        name: req.name,
+        role_name: req.role_name,
+        principal_name: req.principal_name,
+        principal_type: req.principal_type,
         namespace: req.namespace,
-        role_ref: RoleRef {
-            kind: req.role_ref.kind,
-            name: req.role_ref.name,
-            api_group: req.role_ref.api_group,
-        },
-        subjects: req.subjects.into_iter().map(|s| RoleBindingSubject {
-            kind: s.kind,
-            name: s.name,
-            namespace: s.namespace,
-        }).collect(),
         created_at: Utc::now().to_rfc3339(),
     };
     
@@ -145,7 +96,7 @@ pub async fn delete_role_binding(
         if let Some(binding) = state.get_all_role_bindings().await?
             .into_iter()
             .find(|rb| rb.id == Some(uuid::Uuid::parse_str(&id).unwrap())) {
-            state.delete_role_binding(&binding.name, binding.namespace.as_deref()).await?
+            state.delete_role_binding(&binding.role_name, binding.namespace.as_deref()).await?
         } else {
             false
         }
