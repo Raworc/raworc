@@ -76,6 +76,43 @@ raworc> /api PUT agents/code-assistant {"instructions":"You are an expert code r
 raworc> /api DELETE agents/code-assistant
 ```
 
+### Session Management
+```bash
+# List all sessions
+raworc> /api sessions
+
+# List sessions with filters
+raworc> /api sessions?lifecycle_state=STARTED
+raworc> /api sessions?created_by=john.doe
+
+# Get specific session
+raworc> /api sessions/61549530-3095-4cbf-b379-cd32416f626d
+
+# Create a new session
+raworc> /api POST sessions {"name":"data-analysis","starting_prompt":"Analyze Q4 sales data","agent_ids":["550e8400-e29b-41d4-a716-446655440000"],"waiting_timeout_seconds":300}
+
+# Update session details
+raworc> /api PUT sessions/61549530-3095-4cbf-b379-cd32416f626d {"name":"Q4 Analysis - Updated","metadata":{"priority":"high"}}
+
+# Update session state
+raworc> /api PUT sessions/61549530-3095-4cbf-b379-cd32416f626d/state {"lifecycle_state":"STARTED","container_id":"k8s-pod-abc123"}
+
+# Remix a session (create new from existing)
+raworc> /api POST sessions/61549530-3095-4cbf-b379-cd32416f626d/remix {"name":"data-analysis-continued","starting_prompt":"Focus on trend analysis"}
+
+# Delete a session
+raworc> /api DELETE sessions/61549530-3095-4cbf-b379-cd32416f626d
+```
+
+### Service Account Password Management
+```bash
+# Change password for current user
+raworc> /api PUT service-accounts/current-user/password {"current_password":"oldPass123","new_password":"newSecurePass456"}
+
+# Admin changing another user's password
+raworc> /api PUT service-accounts/bot-user/password {"new_password":"newBotPassword789"}
+```
+
 ## Response Format
 
 All commands show:

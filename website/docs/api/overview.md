@@ -63,6 +63,7 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 | `/health` | GET | Health check |
 | `/version` | GET | API version info |
 | `/auth/internal` | POST | Authenticate and get token |
+| `/auth/external` | POST | External authentication (OAuth2/OIDC/SAML) |
 | `/auth/me` | GET | Get current user info |
 
 ### Service Accounts
@@ -72,7 +73,9 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 | `/service-accounts` | GET | List all service accounts |
 | `/service-accounts` | POST | Create new service account |
 | `/service-accounts/{id}` | GET | Get specific service account |
+| `/service-accounts/{id}` | PUT | Update service account |
 | `/service-accounts/{id}` | DELETE | Delete service account |
+| `/service-accounts/{id}/password` | PUT | Update service account password |
 
 ### Roles
 
@@ -101,6 +104,18 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 | `/agents/{id}` | GET | Get specific agent |
 | `/agents/{id}` | PUT | Update agent |
 | `/agents/{id}` | DELETE | Delete agent |
+
+### Sessions
+
+| Endpoint | Method | Description |
+|----------|--------|--------------|
+| `/sessions` | GET | List sessions (with filters) |
+| `/sessions` | POST | Create new session |
+| `/sessions/{id}` | GET | Get specific session |
+| `/sessions/{id}` | PUT | Update session details |
+| `/sessions/{id}/state` | PUT | Update session lifecycle state |
+| `/sessions/{id}/remix` | POST | Create new session from existing |
+| `/sessions/{id}` | DELETE | Delete session |
 
 ## Request Format
 
@@ -176,9 +191,11 @@ GET /api/v0/agents?page=1&limit=20
 
 ## Filtering
 
-Some endpoints support filtering (coming soon):
+Some endpoints support filtering:
 ```
-GET /api/v0/agents?active=true&model=gpt-4
+GET /api/v0/sessions?lifecycle_state=STARTED
+GET /api/v0/sessions?created_by=john.doe
+GET /api/v0/agents?active=true&model=gpt-4  # Coming soon
 ```
 
 ## CLI Integration
