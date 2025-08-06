@@ -10,6 +10,7 @@ use utoipa::ToSchema;
 use crate::models::{AppState, Session, SessionLifecycle, CreateSessionRequest, RemixSessionRequest, UpdateSessionStateRequest, UpdateSessionRequest};
 use crate::rest::error::{ApiError, ApiResult};
 use crate::rest::middleware::AuthContext;
+use crate::rest::rbac_enforcement::{check_api_permission, permissions, get_user_namespace};
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct SessionResponse {
@@ -287,18 +288,13 @@ pub async fn update_session_state(
         AuthPrincipal::ServiceAccount(sa) => &sa.user,
     };
 
-    if &session.created_by != username {
-        let is_admin = crate::auth::check_permission(
-            &auth.principal,
-            &state,
-            &crate::rbac::PermissionContext::new("api", "sessions", "update-all"),
-        )
+    // Check permission for updating sessions in the namespace
+    let can_update = check_api_permission(&auth, &state, &permissions::SESSION_UPDATE, Some(&session.namespace))
         .await
-        .unwrap_or(false);
-
-        if !is_admin {
-            return Err(ApiError::Forbidden("Cannot update other users' sessions".to_string()));
-        }
+        .is_ok();
+    
+    if !can_update && &session.created_by != username {
+        return Err(ApiError::Forbidden("Cannot update other users' sessions".to_string()));
     }
 
     let updated_session = Session::update_state(&state.db, session_id, req)
@@ -337,18 +333,13 @@ pub async fn update_session(
         AuthPrincipal::ServiceAccount(sa) => &sa.user,
     };
 
-    if &session.created_by != username {
-        let is_admin = crate::auth::check_permission(
-            &auth.principal,
-            &state,
-            &crate::rbac::PermissionContext::new("api", "sessions", "update-all"),
-        )
+    // Check permission for updating sessions in the namespace
+    let can_update = check_api_permission(&auth, &state, &permissions::SESSION_UPDATE, Some(&session.namespace))
         .await
-        .unwrap_or(false);
-
-        if !is_admin {
-            return Err(ApiError::Forbidden("Cannot update other users' sessions".to_string()));
-        }
+        .is_ok();
+    
+    if !can_update && &session.created_by != username {
+        return Err(ApiError::Forbidden("Cannot update other users' sessions".to_string()));
     }
 
     let updated_session = Session::update(&state.db, session_id, req)
@@ -386,18 +377,13 @@ pub async fn delete_session(
         AuthPrincipal::ServiceAccount(sa) => &sa.user,
     };
 
-    if &session.created_by != username {
-        let is_admin = crate::auth::check_permission(
-            &auth.principal,
-            &state,
-            &crate::rbac::PermissionContext::new("api", "sessions", "delete-all"),
-        )
+    // Check permission for deleting sessions in the namespace
+    let can_delete = check_api_permission(&auth, &state, &permissions::SESSION_DELETE, Some(&session.namespace))
         .await
-        .unwrap_or(false);
-
-        if !is_admin {
-            return Err(ApiError::Forbidden("Cannot delete other users' sessions".to_string()));
-        }
+        .is_ok();
+    
+    if !can_delete && &session.created_by != username {
+        return Err(ApiError::Forbidden("Cannot delete other users' sessions".to_string()));
     }
 
     // Sessions can be soft deleted in any state

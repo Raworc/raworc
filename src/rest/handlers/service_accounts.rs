@@ -1,5 +1,6 @@
 use axum::{
     extract::{Path, State},
+    Extension,
     Json,
 };
 use bcrypt::{hash, DEFAULT_COST};
@@ -10,6 +11,8 @@ use utoipa::ToSchema;
 use crate::models::AppState;
 use crate::rbac::ServiceAccount;
 use crate::rest::error::{ApiError, ApiResult};
+use crate::rest::middleware::AuthContext;
+use crate::rest::rbac_enforcement::{check_api_permission, permissions};
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateServiceAccountRequest {
@@ -63,17 +66,34 @@ impl From<ServiceAccount> for ServiceAccountResponse {
 }
 
 pub async fn list_service_accounts(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<Vec<ServiceAccountResponse>>> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::SERVICE_ACCOUNT_LIST, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
+
     let accounts = state.get_all_service_accounts().await?;
     let response: Vec<ServiceAccountResponse> = accounts.into_iter().map(Into::into).collect();
     Ok(Json(response))
 }
 
 pub async fn get_service_account(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<ServiceAccountResponse>> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::SERVICE_ACCOUNT_GET, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     // Try to parse as UUID first, otherwise treat as username
     let account = if let Ok(uuid) = uuid::Uuid::parse_str(&id) {
         state.get_all_service_accounts().await?
@@ -88,9 +108,17 @@ pub async fn get_service_account(
 }
 
 pub async fn create_service_account(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Json(req): Json<CreateServiceAccountRequest>,
 ) -> ApiResult<Json<ServiceAccountResponse>> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::SERVICE_ACCOUNT_CREATE, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     // Check if already exists
     if let Ok(Some(_)) = state.get_service_account(&req.user).await {
         return Err(ApiError::Conflict("Service account already exists".to_string()));
@@ -108,9 +136,17 @@ pub async fn create_service_account(
 }
 
 pub async fn delete_service_account(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<()> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::SERVICE_ACCOUNT_DELETE, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     let deleted = if uuid::Uuid::parse_str(&id).is_ok() {
         state.delete_service_account_by_id(&id).await?
     } else {
@@ -125,10 +161,25 @@ pub async fn delete_service_account(
 }
 
 pub async fn update_service_account_password(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
     Json(req): Json<UpdatePasswordRequest>,
 ) -> ApiResult<()> {
+    // Check permission - users can update their own password, admins can update any
+    let is_self = match &auth.principal {
+        crate::rbac::AuthPrincipal::ServiceAccount(sa) => sa.user == id || sa.id.map(|uuid| uuid.to_string()) == Some(id.clone()),
+        _ => false,
+    };
+
+    if !is_self {
+        check_api_permission(&auth, &state, &permissions::SERVICE_ACCOUNT_UPDATE, None)
+            .await
+            .map_err(|e| match e {
+                axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+                _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+            })?;
+    }
     use bcrypt::verify;
     
     // Get the service account first
@@ -165,10 +216,18 @@ pub async fn update_service_account_password(
 }
 
 pub async fn update_service_account(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
     Json(req): Json<UpdateServiceAccountRequest>,
 ) -> ApiResult<Json<ServiceAccountResponse>> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::SERVICE_ACCOUNT_UPDATE, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     // Check if service account exists
     let account = if let Ok(uuid) = uuid::Uuid::parse_str(&id) {
         state.get_all_service_accounts().await?

@@ -1,5 +1,6 @@
 use axum::{
     extract::{Path, State},
+    Extension,
     Json,
 };
 use chrono::Utc;
@@ -10,6 +11,8 @@ use utoipa::ToSchema;
 use crate::models::AppState;
 use crate::rbac::{Role, Rule};
 use crate::rest::error::{ApiError, ApiResult};
+use crate::rest::middleware::AuthContext;
+use crate::rest::rbac_enforcement::{check_api_permission, permissions};
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateRoleRequest {
@@ -68,17 +71,34 @@ impl From<Role> for RoleResponse {
 }
 
 pub async fn list_roles(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<Vec<RoleResponse>>> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::ROLE_LIST, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
+
     let roles = state.get_all_roles().await?;
     let response: Vec<RoleResponse> = roles.into_iter().map(Into::into).collect();
     Ok(Json(response))
 }
 
 pub async fn get_role(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<RoleResponse>> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::ROLE_GET, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     // Try to parse as UUID first, otherwise treat as name
     let role = if let Ok(uuid) = uuid::Uuid::parse_str(&id) {
         state.get_all_roles().await?
@@ -93,9 +113,17 @@ pub async fn get_role(
 }
 
 pub async fn create_role(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Json(req): Json<CreateRoleRequest>,
 ) -> ApiResult<Json<RoleResponse>> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::ROLE_CREATE, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     // Check if already exists
     if let Ok(Some(_)) = state.get_role(&req.name).await {
         return Err(ApiError::Conflict("Role already exists".to_string()));
@@ -120,9 +148,17 @@ pub async fn create_role(
 }
 
 pub async fn delete_role(
+    Extension(auth): Extension<AuthContext>,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<()> {
+    // Check permission
+    check_api_permission(&auth, &state, &permissions::ROLE_DELETE, None)
+        .await
+        .map_err(|e| match e {
+            axum::http::StatusCode::FORBIDDEN => ApiError::Forbidden("Insufficient permissions".to_string()),
+            _ => ApiError::Internal(anyhow::anyhow!("Permission check failed")),
+        })?;
     let deleted = if uuid::Uuid::parse_str(&id).is_ok() {
         // For UUID, we need to find the role first
         if let Some(role) = state.get_all_roles().await?

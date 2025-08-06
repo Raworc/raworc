@@ -5,19 +5,14 @@ use axum::{
     response::Response,
 };
 use crate::auth::decode_jwt;
-#[allow(unused_imports)]
-use crate::auth::check_permission;
 use crate::models::AppState;
 use crate::rbac::{AuthPrincipal, RbacClaims, Subject, SubjectType};
-#[allow(unused_imports)]
-use crate::rbac::PermissionContext;
 use std::sync::Arc;
 use tracing::info;
 
 #[derive(Clone)]
 pub struct AuthContext {
     pub principal: AuthPrincipal,
-    #[allow(dead_code)]
     pub claims: RbacClaims,
 }
 
@@ -90,25 +85,4 @@ pub async fn auth_middleware(
     );
 
     Ok(next.run(request).await)
-}
-
-#[allow(dead_code)]
-pub async fn require_permission(
-    api_group: &str,
-    resource: &str,
-    verb: &str,
-    auth_context: &AuthContext,
-    state: &AppState,
-) -> Result<(), StatusCode> {
-    let context = PermissionContext::new(api_group, resource, verb);
-    
-    let has_permission = check_permission(&auth_context.principal, state, &context)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    if !has_permission {
-        return Err(StatusCode::FORBIDDEN);
-    }
-
-    Ok(())
 }
