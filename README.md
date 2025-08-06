@@ -24,8 +24,8 @@ cargo build --release
 # In another terminal, authenticate
 ./target/release/raworc auth
 
-# Connect to the CLI (default endpoint: http://localhost:8080)
-./target/release/raworc --endpoint http://localhost:8080
+# Connect to the server
+./target/release/raworc connect
 ```
 
 ## Documentation
