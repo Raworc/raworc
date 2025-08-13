@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: raworc-postgres
+    networks:
+      - raworc-network
+    environment:
+      POSTGRES_DB: raworc
+      POSTGRES_USER: raworc
+      POSTGRES_PASSWORD: raworc
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raworc"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  raworc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: raworc-server
+    networks:
+      - raworc-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://raworc:raworc@postgres:5432/raworc
+      JWT_SECRET: ${JWT_SECRET:-development-secret-key}
+      HOST_AGENT_IMAGE: python:3.11-slim
+      HOST_AGENT_CPU_LIMIT: "0.5"
+      HOST_AGENT_MEMORY_LIMIT: "536870912"  # 512MB
+      HOST_AGENT_DISK_LIMIT: "1073741824"    # 1GB
+      HOST_AGENT_VOLUMES_PATH: /var/lib/raworc/volumes
+      RUST_LOG: info
+      RAWORC_HOST: 0.0.0.0
+      RAWORC_PORT: 9000
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - raworc_volumes:/var/lib/raworc/volumes
+      - ./logs:/app/logs
+
+networks:
+  raworc-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  raworc_volumes:

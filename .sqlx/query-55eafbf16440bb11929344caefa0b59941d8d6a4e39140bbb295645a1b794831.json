@@ -1,0 +1,77 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                m.id, m.session_id, m.role as \"role: MessageRole\", \n                m.content, m.agent_id, \n                m.metadata, m.created_at,\n                a.name as \"agent_name?\"\n            FROM session_messages m\n            LEFT JOIN agents a ON m.agent_id = a.id\n            WHERE m.session_id = $1\n            ORDER BY m.created_at ASC\n            LIMIT $2 OFFSET $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "role: MessageRole",
+        "type_info": {
+          "Custom": {
+            "name": "message_role",
+            "kind": {
+              "Enum": [
+                "USER",
+                "AGENT",
+                "SYSTEM"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "content",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "agent_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "agent_name?",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "55eafbf16440bb11929344caefa0b59941d8d6a4e39140bbb295645a1b794831"
+}
