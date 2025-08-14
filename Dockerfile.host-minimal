@@ -1,0 +1,43 @@
+FROM rust:slim as builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y pkg-config libssl-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy everything
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY db ./db
+COPY .sqlx ./.sqlx
+
+# Build the binary
+ENV SQLX_OFFLINE=true
+RUN cargo build --release
+
+# Runtime image
+FROM debian:bookworm-slim
+
+RUN apt-get update && \
+    apt-get install -y \
+        ca-certificates \
+        libssl3 \
+        libpq5 \
+        curl \
+        vim \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create host user
+RUN useradd -m -s /bin/bash host
+
+# Copy the binary
+COPY --from=builder /app/target/release/raworc /usr/local/bin/raworc
+
+USER host
+WORKDIR /home/host
+
+# Default command - run the host agent
+CMD ["raworc", "host"]

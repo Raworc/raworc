@@ -1,0 +1,104 @@
+FROM ubuntu:24.04
+
+# Install basic packages and dependencies
+RUN apt-get update && \
+  apt-get install -y \
+  sudo \
+  git \
+  gh \
+  btop \
+  curl \
+  vim \
+  net-tools \
+  build-essential \
+  pkg-config \
+  libssl-dev \
+  ripgrep \
+  unzip \
+  wget \
+  gpg \
+  tmux \
+  tree \
+  fzf \
+  python3-venv \
+  # Ruby dependencies
+  autoconf \
+  bison \
+  libyaml-dev \
+  libreadline6-dev \
+  zlib1g-dev \
+  libncurses5-dev \
+  libffi-dev \
+  libgdbm6 \
+  libgdbm-dev \
+  libdb-dev && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
+
+# Create host user with sudo rights
+RUN useradd -m -s /bin/bash host && \
+  echo 'host ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Switch to host user
+USER host
+WORKDIR /home/host
+
+# Install Node.js via NVM
+ENV HOME=/home/host
+RUN curl -o- https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash && \
+  export NVM_DIR="$HOME/.nvm" && \
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
+  nvm install --lts && \
+  nvm use --lts
+
+# Install Java 21
+USER root
+RUN wget -q https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.deb && \
+  dpkg -i jdk-21_linux-x64_bin.deb && \
+  rm jdk-21_linux-x64_bin.deb
+USER host
+
+# Install Python via UV
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+  /home/host/.local/bin/uv python install
+
+# Install Ruby via rbenv
+RUN curl -fsSL https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer | bash && \
+  echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.bashrc && \
+  echo 'eval "$(rbenv init -)"' >> ~/.bashrc && \
+  . ~/.bashrc && \
+  ~/.rbenv/bin/rbenv install 3.3.5 && \
+  ~/.rbenv/bin/rbenv global 3.3.5
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
+
+# Setup bashrc for proper environment
+RUN echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc && \
+  echo 'export NVM_DIR="$HOME/.nvm"' >> ~/.bashrc && \
+  echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> ~/.bashrc && \
+  echo '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"' >> ~/.bashrc && \
+  echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.bashrc && \
+  echo 'eval "$(rbenv init -)"' >> ~/.bashrc && \
+  echo '. "$HOME/.cargo/env"' >> ~/.bashrc
+
+# Build and install raworc host agent  
+USER host
+WORKDIR /tmp/build
+COPY --chown=host:host Cargo.toml Cargo.lock ./
+COPY --chown=host:host src ./src
+COPY --chown=host:host db ./db
+COPY --chown=host:host .sqlx ./.sqlx
+ENV SQLX_OFFLINE=true
+ENV PATH=/home/host/.cargo/bin:$PATH
+RUN . "$HOME/.cargo/env" && cargo build --release
+USER root
+RUN cp /tmp/build/target/release/raworc /usr/local/bin/raworc && \
+    rm -rf /tmp/build
+
+# Switch back to host user
+USER host
+WORKDIR /home/host
+
+# Default command - run the host agent
+CMD ["raworc", "host"]

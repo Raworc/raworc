@@ -1,0 +1,35 @@
+FROM rust:latest as builder
+
+WORKDIR /app
+
+# Copy everything
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY db ./db
+COPY .sqlx ./.sqlx
+
+# Build the binary
+ENV SQLX_OFFLINE=true
+RUN cargo build --release
+
+# Runtime image
+FROM debian:bookworm-slim
+
+RUN apt-get update && \
+    apt-get install -y \
+        ca-certificates \
+        libssl3 \
+        libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the binary and migrations
+COPY --from=builder /app/target/release/raworc /usr/local/bin/raworc
+COPY db ./db
+
+# Create logs directory
+RUN mkdir -p /app/logs /var/lib/raworc/volumes
+
+# Start the server
+CMD ["raworc", "server"]

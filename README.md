@@ -1,312 +1,145 @@
 # Raworc
 
-**Remote Agent Work Orchestration** - A Docker-based orchestration platform for managing containerized AI agent sessions.
-
-## Features
-
-- **Docker Container Management** - Each session runs in its own isolated Docker container
-- **Resource Limits** - CPU, memory, and disk limits per container
-- **Persistent Volumes** - Session data persists across container restarts
-- **REST API** - Full-featured REST API with OpenAPI documentation
-- **RBAC System** - Role-based access control for multi-user environments
-- **Session Lifecycle** - Automatic container management (idle timeout, health checks)
-- **CLI Interface** - Interactive command-line interface for server management
+Container orchestration system with AI agent integration.
 
 ## Quick Start
 
-### Prerequisites
-
-- Docker Engine (20.10+)
-- PostgreSQL (15+) or use Docker Compose
-- Rust (1.75+) for building from source
-
-### Using Docker Compose (Recommended)
-
 ```bash
-# Clone the repository
-git clone https://github.com/raworc/raworc.git
-cd raworc
-
-# Start all services
-docker-compose up -d
-
-# Check service status
-docker-compose ps
-
-# View logs
-docker-compose logs -f raworc
-```
-
-The server will be available at `http://localhost:9000`
-
-### Manual Installation
-
-#### 1. Set up PostgreSQL
-
-```bash
-# Using Docker
-docker run -d --name postgres \
-  -e POSTGRES_DB=raworc \
-  -e POSTGRES_USER=raworc \
-  -e POSTGRES_PASSWORD=raworc \
-  -p 5432:5432 \
-  postgres:15
-```
-
-#### 2. Build and Run Raworc
-
-```bash
-# Clone the repository
-git clone https://github.com/raworc/raworc.git
-cd raworc
-
-# Copy and configure environment
-cp .env.example .env
-# Edit .env with your settings
-
-# Build the project
+# Build the CLI
 cargo build --release
 
-# Run database migrations
-export DATABASE_URL=postgresql://raworc:raworc@localhost:5432/raworc
-sqlx migrate run
+# Build Docker images
+./target/release/raworc build
 
-# Start the server
+# Start all services
 ./target/release/raworc start
-```
 
-## Usage
-
-### Server Management
-
-```bash
-# Start server in foreground
-raworc start
-
-# Start server as daemon (Unix only)
-raworc serve
-
-# Stop the server
-raworc stop
-
-# Check authentication status
-raworc status
-```
-
-### Authentication
-
-```bash
 # Authenticate with the server
-raworc auth
+./target/release/raworc auth
 
-# Choose authentication method:
-# 1. Service account login (default: admin/admin)
-# 2. JWT token
+# Connect to server (interactive mode)
+./target/release/raworc connect
+# Or just run without arguments (defaults to connect)
+./target/release/raworc
 ```
 
-### Interactive CLI
+Services started:
+- PostgreSQL (port 5433)
+- API Server (port 9000)  
+- Operator (manages containers)
+
+## CLI Commands
+
+### Core Commands
 
 ```bash
-# Connect to server (after authentication)
-raworc connect
+# Authentication & Connection
+raworc                    # Connect to server (default)
+raworc auth               # Authenticate with API server
+raworc status             # Show authentication status
+raworc connect            # Interactive connection to server
 
-# Available commands in interactive mode:
-/api <endpoint>              # Execute API requests
-/status                      # Show server status
-/help                        # Show help
-/quit                        # Exit
+# Service Management
+raworc start              # Start all services via Docker Compose
+raworc start server       # Start specific service
+raworc stop               # Stop all services
+raworc stop server        # Stop specific service
+
+# Build Docker Images
+raworc build              # Build all images
+raworc build server       # Build specific image
+raworc build operator
+raworc build host
 ```
 
-### API Examples
+### Interactive Mode
+
+Once authenticated, use `raworc` or `raworc connect` to enter interactive mode:
 
 ```bash
-# In interactive mode
-/api version                                    # GET /api/v0/version
-/api sessions                                   # List sessions
-/api POST sessions {"name":"test","workspace":"default"}
-/api DELETE sessions/<id>
+raworc> /api health                    # GET /api/v0/health
+raworc> /api agents                    # List agents
+raworc> /api sessions                  # List sessions
+raworc> /api POST agents {"name":"test","model":"claude-3-haiku"}
+raworc> /api DELETE sessions/uuid
+raworc> /status                        # Show auth status
+raworc> /help                          # Show commands
+raworc> /quit                          # Exit
 ```
 
-### REST API
+## Testing the System
 
-The REST API is available at `http://localhost:9000/api/v0`
+Default credentials: `admin` / `admin`
 
-- Swagger UI: `http://localhost:9000/swagger-ui/`
-- OpenAPI spec: `http://localhost:9000/api-docs/openapi.json`
-
-## Configuration
-
-### Environment Variables
+### Using curl (current method)
 
 ```bash
-# Database
-DATABASE_URL=postgresql://user:pass@host:port/dbname
+# 1. Get auth token
+TOKEN=$(curl -s -X POST http://localhost:9000/api/v0/auth/internal \
+  -H "Content-Type: application/json" \
+  -d '{"user":"admin","pass":"admin"}' | jq -r '.token')
 
-# JWT
-JWT_SECRET=your-secret-key
+# 2. Create an agent
+AGENT_ID=$(curl -s -X POST http://localhost:9000/api/v0/agents \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "test-agent",
+    "workspace": "default",
+    "instructions": "You are a helpful assistant",
+    "model": "claude-3-haiku",
+    "tools": [],
+    "routes": []
+  }' | jq -r '.id')
 
-# Server
-RAWORC_HOST=0.0.0.0
-RAWORC_PORT=9000
+# 3. Create a session
+SESSION_ID=$(curl -s -X POST http://localhost:9000/api/v0/sessions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"name\": \"test-session\",
+    \"workspace\": \"default\",
+    \"starting_prompt\": \"Hello\",
+    \"agent_ids\": [\"$AGENT_ID\"]
+  }" | jq -r '.id')
 
-# Host Agent
-HOST_AGENT_IMAGE=python:3.11-slim
-HOST_AGENT_CPU_LIMIT=0.5          # CPUs
-HOST_AGENT_MEMORY_LIMIT=536870912 # Bytes (512MB)
-HOST_AGENT_DISK_LIMIT=1073741824  # Bytes (1GB)
-HOST_AGENT_VOLUMES_PATH=/var/lib/raworc/volumes
+# 4. Check session status
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://localhost:9000/api/v0/sessions/$SESSION_ID | jq
+```
 
-# Logging
-RUST_LOG=info  # trace, debug, info, warn, error
+### CLI commands (planned)
+
+```bash
+# Future commands to be implemented:
+raworc auth login --user admin --pass admin
+raworc connect http://localhost:9000
+raworc agent create --name "my-agent" --model "claude-3-haiku"
+raworc session create --name "my-session" --agent $AGENT_ID
+raworc session list
+raworc session logs $SESSION_ID
 ```
 
 ## Architecture
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Client    │────▶│   Raworc     │────▶│   Docker    │
-│  (REST API) │     │    Server    │     │   Engine    │
-└─────────────┘     └──────────────┘     └─────────────┘
-                            │                     │
-                            ▼                     ▼
-                    ┌──────────────┐     ┌─────────────┐
-                    │  PostgreSQL  │     │  Container  │
-                    │   Database   │     │  (Session)  │
-                    └──────────────┘     └─────────────┘
-```
+- **Server**: REST API for sessions, agents, auth
+- **Operator**: Monitors task queue, manages containers
+- **Host**: Agent runtime in containers
+- **Database**: PostgreSQL storage
 
-### Components
+## Configuration
 
-- **REST API Server** - Axum-based HTTP server with JWT authentication
-- **Docker Manager** - Bollard-based Docker client for container lifecycle
-- **Database Layer** - SQLx with PostgreSQL for state persistence
-- **RBAC System** - Role-based access control with service accounts
-- **CLI Interface** - Interactive command-line client
+Environment variables:
+- `DATABASE_URL`: PostgreSQL connection
+- `JWT_SECRET`: JWT token secret
+- `HOST_AGENT_IMAGE`: Container image (default: raworc-host:latest)
+- `HOST_AGENT_CPU_LIMIT`: CPU limit (default: 0.5)
+- `HOST_AGENT_MEMORY_LIMIT`: Memory in bytes (default: 536870912)
 
 ## Development
 
-### Building from Source
-
 ```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Build debug version
-cargo build
-
-# Build release version
-cargo build --release
-
-# Run tests
-cargo test
-
-# Run with logging
-RUST_LOG=debug cargo run -- start
+cargo test         # run tests
+cargo fmt          # format code
+cargo clippy       # check lints
 ```
-
-### Database Migrations
-
-```bash
-# Create new migration
-sqlx migrate add <name>
-
-# Run migrations
-sqlx migrate run
-
-# Revert last migration
-sqlx migrate revert
-```
-
-### Docker Development
-
-```bash
-# Build Docker image
-docker build -t raworc:latest .
-
-# Run with Docker Compose
-docker-compose up --build
-
-# Clean up
-docker-compose down -v
-```
-
-## Testing
-
-### Run Test Script
-
-```bash
-# Make script executable
-chmod +x test-docker.sh
-
-# Run tests
-./test-docker.sh
-```
-
-The test script will:
-1. Start the server
-2. Authenticate as admin
-3. Create a test session
-4. Verify Docker container creation
-5. Clean up resources
-
-## Troubleshooting
-
-### Common Issues
-
-#### Docker Permission Denied
-```bash
-# Add user to docker group
-sudo usermod -aG docker $USER
-# Log out and back in
-```
-
-#### Database Connection Failed
-```bash
-# Check PostgreSQL is running
-docker ps | grep postgres
-
-# Test connection
-psql postgresql://raworc:raworc@localhost:5432/raworc
-```
-
-#### Port Already in Use
-```bash
-# Change port in .env
-RAWORC_PORT=9001
-
-# Or find and stop process using port
-lsof -i :9000
-kill <PID>
-```
-
-#### Container Creation Failed
-```bash
-# Check Docker daemon
-docker version
-
-# Check Docker socket permissions
-ls -la /var/run/docker.sock
-
-# Pull required image manually
-docker pull python:3.11-slim
-```
-
-## Security Considerations
-
-- Change default admin password immediately
-- Use strong JWT secrets in production
-- Run containers with resource limits
-- Use network isolation for containers
-- Regular security updates for base images
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Support
-
-For issues and questions, please use the GitHub issue tracker.

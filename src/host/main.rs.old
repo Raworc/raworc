@@ -1,0 +1,109 @@
+mod api;
+mod claude;
+mod config;
+mod error;
+mod guardrails;
+mod message_handler;
+mod todo;
+
+use anyhow::Result;
+use clap::Parser;
+use std::sync::Arc;
+use tracing::{info, error};
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Session ID (can also be set via RAWORC_SESSION_ID env var)
+    #[arg(short, long, env = "RAWORC_SESSION_ID")]
+    session_id: String,
+    
+    /// Rawork API base URL
+    #[arg(short, long, env = "RAWORC_API_URL", default_value = "http://localhost:8080")]
+    api_url: String,
+    
+    /// Rawork API token
+    #[arg(short = 't', long, env = "RAWORC_API_TOKEN")]
+    api_token: String,
+    
+    /// Claude API key
+    #[arg(short = 'c', long, env = "ANTHROPIC_API_KEY")]
+    claude_api_key: String,
+    
+    /// Polling interval in seconds
+    #[arg(short = 'i', long, env = "POLLING_INTERVAL", default_value = "2")]
+    polling_interval: u64,
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_default_env()
+                .add_directive(tracing::Level::INFO.into())
+        )
+        .json()
+        .init();
+    
+    // Load environment variables
+    dotenv::dotenv().ok();
+    
+    // Parse command line arguments
+    let args = Args::parse();
+    
+    info!(
+        session_id = %args.session_id,
+        api_url = %args.api_url,
+        "Starting Raworc Host Agent"
+    );
+    
+    // Create configuration
+    let config = Arc::new(config::Config {
+        session_id: args.session_id,
+        api_url: args.api_url,
+        api_token: args.api_token,
+        claude_api_key: args.claude_api_key,
+        polling_interval: std::time::Duration::from_secs(args.polling_interval),
+    });
+    
+    // Initialize API client
+    let api_client = Arc::new(api::RaworcClient::new(config.clone()));
+    
+    // Initialize Claude client
+    let claude_client = Arc::new(claude::ClaudeClient::new(&config.claude_api_key)?);
+    
+    // Initialize todo manager
+    let todo_manager = Arc::new(tokio::sync::Mutex::new(
+        todo::TodoManager::new("todo.txt").await?
+    ));
+    
+    // Initialize guardrails
+    let guardrails = Arc::new(guardrails::Guardrails::new());
+    
+    // Create message handler
+    let handler = message_handler::MessageHandler::new(
+        api_client.clone(),
+        claude_client,
+        todo_manager,
+        guardrails,
+    );
+    
+    // Start message polling loop
+    info!("Starting message polling loop");
+    
+    loop {
+        match handler.poll_and_process().await {
+            Ok(processed) => {
+                if processed > 0 {
+                    info!(count = processed, "Processed messages");
+                }
+            }
+            Err(e) => {
+                error!(error = %e, "Error processing messages");
+            }
+        }
+        
+        tokio::time::sleep(config.polling_interval).await;
+    }
+}
